@@ -7,9 +7,10 @@ const multer = require('multer');
 const mongoose = require("mongoose");
 const File = require("../models/File.js");
 const bcrypt = require("bcrypt");
-
-// Middleware
-// Multer processes files in the multipart/form-data format.
+const session = require('express-session'); // Import to use use sessions
+const cookieParser = require('cookie-parser'); // Import to parse cookies (like session cookies)
+// Multer processes files in the multipart/form-data format. (middleware)
+const passport = require("passport"); // TODO: Remember to download + implement TOTP MFA Passport strategy later
 const upload = multer({dest: "uploads"})
 
 
@@ -27,21 +28,78 @@ const app = express();
 // Set up EJS as the view engine, must use before response.render() will work
 app.set("view engine", "ejs");
 
+// Global middleware
 app.use(express.urlencoded({extended: true }));
+app.use(cookieParser("session cookie secret value")) // cookieParser must use same secret value as session
+app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep users signed in even after server restarts
+    secret: "session cookie secret value", // TODO: Maybe generate this dynamically? Unsure what is most secure
+    saveUninitialized: false,
+    resave: false,
+    cookie: {
+        maxAge: 60000 * 60 // Session cookies expire after 1 hour
+    },
+    store: MongoStore.create({
+        client: mongoose.connection.getClient()
+    })
+}));
+app.use(passport.initialize());
+app.use(passport.session()); //
 
 
 
 
 // Pages
-app.get("/",
+app.get("/", // Home page
     (request, response) => {
         // Will look for view template called index, usually in folder "views"
-        response.render("index"); 
+        // By default, it will be sent to upload screen, let's change
+        response.render("home");  // TODO: add basic home screen, with login/register button
     }
 )
 
 
-// Used for uploading files
+// Page used for uploading files
+
+/* TODO:
+- Add middleware for input validation (Multer has built-in file valiation tools via modifying "upload" var, should use these)
+- Add middlware for generating + verifying user sessions via express sessions (Access data via request.session)
+- Add middleware for authenticating user via Passport.js, request.user != null if successful + logged in
+
+*/
+// Should be presented with option to do basic upload (no account required) or precise upload (account required)
+/*
+Input:  {
+    file (required), 
+}
+*/
+
+
+// For logging in. If user is already logged in, will just redirect to /acc
+// Input: Username, password
+// Output: Error message upon failure, redirect to /acc if successful
+app.post("/login",
+    (request, response) => {
+
+    }
+)
+
+
+// For logging out. If user is already logged out, will just redirect to /
+// Input: Nothing
+// Output: Success message upon logging out, or just redirecting to / if already logged out
+app.post("/logout",
+    (request, response) => {
+
+    }
+)
+
+
+// This is specifically for uploading files
+// Input: File, isPrivate, user (of course), parentFolder (Optional)
+// If isPrivate: Provide: List of whitelisted usernames whitelistView, whitelistAdd
+
+// Output: Will provide a link to access file, will return via ejs
+// TODO: Make sure to verify parentFolder is actually valid and allows to be added to
 app.post("/upload",
     upload.single("file"),
     async (request, response) => {
@@ -65,6 +123,51 @@ app.post("/upload",
         // Return back to /index, and send the link to the file back:
         response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`});
 })
+
+
+
+// Home page for logged in users, will display options (create new folder, upload new file), view user's current folders and uploaded files
+// Output array of files belonging to user, array of folders belonging to user
+app.post("/acc/home",
+    upload.single("file"),
+    (request, response) => {
+
+    }
+)
+
+
+
+// Specifically for logged in users, will attempt to view the folder of the given folder ID
+// Input: Folder id
+// Output: If folder exists + correct permissions, will return array of files that belong in the folder
+app.get("/acc/folder/:id",
+    (request, response) => {
+
+    }
+)
+
+
+// This is for logged in users who want to create a folder
+// Input: folderName, isPrivate, user (of course)
+// If isPrivate: Provide: List of whitelisted usernames whitelistView, whitelistAdd
+// Output: Success message, or reason for failure
+app.post("/acc/createFolder",
+    upload.single("file"),
+    (request, response) => {
+
+    }
+)
+
+// Specifically for logged in users, will attempt to delete the file (assuming they own it + it exists)
+// Input: fileName
+// Output: Success or failure + error message
+// TODO: Be very careful with how you decide what they can delete, make sure that they can't input a file path to somewhere else
+app.post("/acc/file/delete",
+    (request, response) => {
+
+    }
+)
+
 
 
 // Used for attempting to download a file with a given id

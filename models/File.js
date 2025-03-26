@@ -1,6 +1,8 @@
 // This will be the MongoDB model for our files
 // Not storing the file data itself
 
+// TODO: Add other metadata, like date added, owner of the file
+
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
