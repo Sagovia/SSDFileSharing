@@ -12,6 +12,10 @@ const cookieParser = require('cookie-parser'); // Import to parse cookies (like 
 // Multer processes files in the multipart/form-data format. (middleware)
 const passport = require("passport"); // TODO: Remember to download + implement TOTP MFA Passport strategy later
 const upload = multer({dest: "uploads"})
+require("../strategies/local-strategy.js"); // Import our local strategy for Passport.js authentication
+const User = require('../models/User.js'); // Import our mongoose User object
+const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
+
 
 
 mongoose
@@ -29,16 +33,19 @@ const app = express();
 app.set("view engine", "ejs");
 
 // Global middleware
-app.use(express.urlencoded({extended: true }));
+
+// Middleware to parse content-type json bodies in request, allows request.body to be defined
+app.use(express.json());
+app.use(express.urlencoded({extended: true })); 
 app.use(cookieParser("session cookie secret value")) // cookieParser must use same secret value as session
 app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep users signed in even after server restarts
     secret: "session cookie secret value", // TODO: Maybe generate this dynamically? Unsure what is most secure
     saveUninitialized: false,
     resave: false,
     cookie: {
-        maxAge: 60000 * 60 // Session cookies expire after 1 hour
+        maxAge: 60000 * 60 // Session cookies expire after 1 hour TODO: Maybe make longer?
     },
-    store: MongoStore.create({
+    store: MongoStore.create({ // For creating the persistent session store
         client: mongoose.connection.getClient()
     })
 }));
@@ -74,14 +81,71 @@ Input:  {
 */
 
 
-// For logging in. If user is already logged in, will just redirect to /acc
-// Input: Username, password
-// Output: Error message upon failure, redirect to /acc if successful
-app.post("/login",
-    (request, response) => {
 
+
+
+// For registering for an account. If user is already logged in, will just redirect to /acc
+// TODO: Still need to integrate session middleware into this
+app.post("/register",
+    async (request, response) => {
+        const data = request.body; // TODO: For now assume data is accurate, later add input validation
+        console.log(request.body);
+        const newUser = new User(data);
+
+        try {
+            const savedUser = await newUser.save();
+            return response.redirect("/login"); // Successful registering, go to login page
+        }
+        catch(err) {
+            console.log(err);
+            return response.sendStatus(401);
+        }
     }
 )
+
+app.get("/register",
+    (request, response) => {
+        console.log(request.session.user);
+        if(request.user) {
+            response.redirect("/acc"); // If user is already logged in, will just redirect to /acc
+        }
+        else {
+            response.render("registerPage"); // Display register page
+        }
+    }
+)
+
+
+
+// For logging in. If user is already logged in, will just redirect to /acc
+// Input: Username, password
+// Output: Error message upon failure, redirect to /acc if successful, possibly alongside info like username
+app.post("/login",
+    passport.authenticate("local"), 
+    (request, response) => {
+        if(request.user == null) {
+            // Return back to /index, and send the link to the file back:
+            // TODO: Make error message more specific, can do via passing message object in done() in strategy definition
+            response.render("loginPage", {msg : `Invalid credentials, please try again.`});
+        }
+
+        response.render("accountHome"); // TODO: Add account home
+    }
+)
+
+
+app.get("/login",
+    (request, response) => {
+        if(request.user) {
+            response.redirect("/acc"); // If user is already logged in, will just redirect to /acc
+        }
+        else {
+            response.render("loginPage"); // Display register page
+        }
+    }
+)
+
+
 
 
 // For logging out. If user is already logged out, will just redirect to /
