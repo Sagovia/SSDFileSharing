@@ -107,7 +107,7 @@ app.get("/register",
     (request, response) => {
         console.log(request.session.user);
         if(request.user) {
-            response.redirect("/acc"); // If user is already logged in, will just redirect to /acc
+            response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc/home
         }
         else {
             response.render("registerPage"); // Display register page
@@ -129,15 +129,15 @@ app.post("/login",
             response.render("loginPage", {msg : `Invalid credentials, please try again.`});
         }
 
-        response.render("accountHome"); // TODO: Add account home
+        response.redirect("/acc/home"); 
     }
 )
 
 
 app.get("/login",
     (request, response) => {
-        if(request.user) {
-            response.redirect("/acc"); // If user is already logged in, will just redirect to /acc
+        if(request.user) { // If logged in
+            response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc
         }
         else {
             response.render("loginPage"); // Display register page
@@ -171,6 +171,7 @@ app.post("/upload",
             // Use multer's file added to request for this
             pathToFile: request.file.path,
             name: request.file.originalname,
+            owner: request.user.id
         }
 
         if(request.body.password != null && request.body.password != "") { // If password exists, replace later with proper validation checks
@@ -189,13 +190,32 @@ app.post("/upload",
 })
 
 
+app.get("/upload", 
+    (request, response) => { // TODO: Clean up
+        response.render("index");
+    }
+)
+
+
 
 // Home page for logged in users, will display options (create new folder, upload new file), view user's current folders and uploaded files
 // Output array of files belonging to user, array of folders belonging to user
-app.post("/acc/home",
-    upload.single("file"),
-    (request, response) => {
+app.get("/acc/home",
+    async (request, response) => {
+        if(!request.user) { // If NOT logged in
+            response.redirect("/login"); // Redirect to login page
+        }
 
+
+        // Now user is logged in, so display some basic info, such as created folders, uploaded files
+        const files = await File.find({ owner: request.user.id });
+        const fileNames = files.map((file) => file.name);
+        const username = request.user.username;
+        console.log(files);
+
+
+        // Render homepage
+        response.render("accountHomepage", {fileNames, username});
     }
 )
 
