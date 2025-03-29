@@ -270,8 +270,16 @@ app.get("/acc/home",
         console.log(files);
 
 
+        // Generate a list of links to view details about each file's info: (format: http://localhost:3000/file/view/[file id])
+        // Generate file detail links
+        const fileDetailLinks = files.map((curFile) => 
+        `${request.protocol}://${request.get('host')}/file/view/${curFile.id}`
+        );
+        
+
+
         // Render homepage
-        response.render("accountHomepage", {fileNames, username});
+        response.render("accountHomepage", {fileNames, username, fileDetailLinks});
     }
 )
 
@@ -335,88 +343,7 @@ app.post("/acc/file/delete",
 
 */
 
-app.get("/file/view/:id", 
-    validateFile, 
-    checkOwnership, 
-    checkWhitelist, 
-    checkPassword,
-    (request, response) => {
-        // All checks passed, render the file info
-        renderFileView(request, response);
-    }
-)
-
-/*
-app.get("/file/view/:id", 
-    async (request, response) => {
-            // TODO: Validation check for id
-            
-
-
-            
-            // Grab desired File by Id:
-            const requestedFile = await File.findById(request.params.id);
-            const user = request.user;
-            const inputPassword = request.body.password;
-
-            if(!requestedFile) { // If no such requested file
-                return response.status(404); // Return status 404
-            }
-            else { // Request file exists
-                // If user is owner of the file, always allowed to access the file
-                if(user == null) { // User is NOT logged in
-                    if(requestedFile.password != null && inputPassword != null) { // If file has password
-                        if(requestedFile.password === inputPassword) {
-                            // Grab desired info and return it
-                            const requestedFileName = requestedFile.name;
-                            const requestedFileDownloadCount = requestedFile.downloadCount;
-                            const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
-                            return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
-                        } else {
-                            return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
-                        }
-                    }
-                    else {
-                        return response.status(403).render("password"); // Render password input page
-                    }
-                }
-                
-                console.log("owner");
-                console.log(requestedFile.owner.id.toString("hex"));
-                if (requestedFile.owner.id.toString("hex") === user.id) { 
-                    // Grab desired info
-                    const requestedFileName = requestedFile.name;
-                    const requestedFileDownloadCount = requestedFile.downloadCount;
-                    const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
-                    console.log(requestedFileName);
-                    return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
-                }
-                 // User not file owner, and requested file has associated password
-                else if(requestedFile.password != null && inputPassword != null) {
-                    if(requestedFile.password === inputPassword) {
-                        // Grab desired info and return it
-                        const requestedFileName = requestedFile.name;
-                        const requestedFileDownloadCount = requestedFile.downloadCount;
-                        const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
-                        return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
-                    } else {
-                        return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
-                    }
-                }
-                else {
-                    return response.status(403).render("password"); // Render password input page
-                }
-            }
-        
-    }
-) 
-    */
-
-
-
-
-
-app.post("/file/view/:id", 
+app.get("/file/view/:id",  //TODO Input validation
     validateFile, 
     checkOwnership, 
     checkWhitelist, 
@@ -429,50 +356,22 @@ app.post("/file/view/:id",
 
 
 
-/*
-// Assuming file requires password to view details
-app.post("/file/view/:id", 
-    async (request, response) => {
-            // TODO: Validation check for id
-            
-            
-            // Grab desired File by Id:
-            const requestedFile = await File.findById(request.params.id);
-            const user = request.user;
-            const inputPassword = request.body.password;
 
-            if(!requestedFile) { // If no such requested file
-                return response.status(404); // Return status 404
-            }
-            else { // Request file exists
-                // If user is owner of the file, always allowed to access the file
-                if(requestedFile.owner.id === user.id) { 
-                    // Grab desired info
-                    const requestedFileName = requestedFile.name;
-                    const requestedFileDownloadCount = requestedFile.downloadCount;
-                    const requestedFileLink = `${request.headers.origin}/file/${requestedFile.id}`;
-                    return response.render("fileView", {requestedFileName, requestedFileLink, requestedFileDownloadCount});
-                }
-                 // User not file owner, and requested file has associated password
-                else if(requestedFile.password != null && inputPassword != null) {
-                    if(requestedFile.password === inputPassword) {
-                        // Grab desired info and return it
-                        const requestedFileName = requestedFile.name;
-                        const requestedFileDownloadCount = requestedFile.downloadCount;
-                        const requestedFileLink = `${request.headers.origin}/file/${requestedFile.id}`;
-                        return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
-                    } else {
-                        return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
-                    }
-                }
-                else {
-                    return response.status(403).render("password"); // Render password input page
-                }
-            }
-        
+
+
+
+app.post("/file/view/:id",  //TODO Input validation
+    validateFile, 
+    checkOwnership, 
+    checkWhitelist, 
+    checkPassword,
+    (request, response) => {
+        // All checks passed, render the file info
+        renderFileView(request, response);
     }
-) 
-    */
+)
+
+
 
 
 // Used for attempting to download a file with a given id

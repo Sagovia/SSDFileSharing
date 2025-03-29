@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Account Home</title>
 </head>
 <body>
-    Account homepage. 
-    <br>3
-    Currently logged in as <%= locals.username %>
-    <div>
-        Here's a list of files you've uploaded:
-        <br>
-        <%= locals.fileNames %>
-    </div>
+    <h1>Welcome, <%= username %>!</h1>
+    
+    <h2>Your Uploaded Files</h2>
+    <ul>
+        <% fileNames.forEach((fileName, index) => { %>
+            <li>
+                <%= fileName %>: 
+                <a href="<%= fileDetailLinks[index] %>" target="_blank" rel="noopener noreferrer">View Details</a>
+            </li>
+        <% }); %>
+    </ul>
 </body>
 </html>
