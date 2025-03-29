@@ -27,8 +27,8 @@ const fileSchema = new Schema({
     // User who uploaded the File will be considered the owner
     owner: { // This will reference the _id of the owner, must be a User TODO: Figure out validation checking for this later
         type: Schema.Types.ObjectId,
-        ref: 'User', // Refers to the User model
-        required: true
+        ref: 'User', // Refers to the User model 
+        // Not required, owner can be null if file is uploaded by user with no account
     }
     /*
     TODO: Will need to add other related info here, like whitelisted users that can access the file, description maybe, upload date etc.

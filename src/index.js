@@ -16,6 +16,7 @@ require("../strategies/local-strategy.js"); // Import our local strategy for Pas
 const User = require('../models/User.js'); // Import our mongoose User object
 const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
 
+// TODO: Login session expires even if in use, want it to last longer
 
 
 mongoose
@@ -108,6 +109,44 @@ const checkPassword = (req, res, next) => {
     next();
 };
 
+
+// Delete given file, returns true upon successful deletion, false if otherwise
+const deleteFile = async (file) => {
+        fs = require('fs')
+        const path = file.pathToFile
+        await fs.unlink(path, (err) => {
+        if (err) {
+            console.error(err)
+            return false; // Error deleting file
+        }})
+        return true;
+}
+
+const renderHomepage = async (request, response) => {
+    // Now user is logged in, so display some basic info, such as created folders, uploaded files
+    const files = await File.find({ owner: request.user.id });
+    const fileNames = files.map((file) => file.name);
+    const username = request.user.username;
+    console.log(files);
+
+
+    // Generate a list of links to view details about each file's info: (format: http://localhost:3000/file/view/[file id])
+    // Generate file detail links
+    const fileDetailLinks = files.map((curFile) => 
+    `${request.protocol}://${request.get('host')}/file/view/${curFile.id}`
+    );
+
+    // Generate list of links to delete file (format http://localhost:3000/file/delete/[file id])
+    const fileDeletionLinks = files.map((curFile) => 
+        `${request.protocol}://${request.get('host')}/file/delete/${curFile.id}`
+        );
+    
+    
+
+
+    // Render homepage
+    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks});
+}
 
 
 
@@ -227,7 +266,8 @@ app.post("/upload",
             // Use multer's file added to request for this
             pathToFile: request.file.path,
             name: request.file.originalname,
-            owner: request.user.id
+            owner: request.user?.id ?? request.user ?? null
+
         }
 
         if(request.body.password != null && request.body.password != "") { // If password exists, replace later with proper validation checks
@@ -262,24 +302,8 @@ app.get("/acc/home",
             return response.redirect("/login"); // Redirect to login page
         }
 
-
-        // Now user is logged in, so display some basic info, such as created folders, uploaded files
-        const files = await File.find({ owner: request.user.id });
-        const fileNames = files.map((file) => file.name);
-        const username = request.user.username;
-        console.log(files);
-
-
-        // Generate a list of links to view details about each file's info: (format: http://localhost:3000/file/view/[file id])
-        // Generate file detail links
-        const fileDetailLinks = files.map((curFile) => 
-        `${request.protocol}://${request.get('host')}/file/view/${curFile.id}`
-        );
-        
-
-
-        // Render homepage
-        response.render("accountHomepage", {fileNames, username, fileDetailLinks});
+        // User is logged in, so redirect to homepage
+        renderHomepage(request, response);
     }
 )
 
@@ -310,9 +334,43 @@ app.post("/acc/createFolder",
 // Input: fileName
 // Output: Success or failure + error message
 // TODO: Be very careful with how you decide what they can delete, make sure that they can't input a file path to somewhere else
-app.post("/acc/file/delete",
-    (request, response) => {
-
+app.post("/file/delete/:id",
+    validateFile, // Middleware to validate file by given ID exists, will attach it to request if so
+    async (request, response) => {
+        /*
+        Logic:
+        If (owner of the file):
+            Allow deletion
+        else if (In whitelist for allowing deletion) // TODO: Implement whitelist features related to deletion
+            Allow deletion
+        else if(Not logged in):
+            Redirect to /login
+        else:
+            Error, permission denied
+        */
+        
+        if(!request.user) { // User signed out, don't allow deletion, redirect to login page
+            return response.redirect("/login");
+        }
+        else if(request.file.owner == null) { // File was uploaded by person with no account, deletion not available (will have to wait)
+            return response.redirect("/login");
+        }
+        else if (request.file.owner.id.toString("hex") === request.user.id) { // If user is logged in and if user is owner of the file
+            // Allow deletion
+            const fileIsDeleted = await deleteFile(request.file); // Delete the file itself
+            if(fileIsDeleted) {
+                console.log(request.file.id);
+                await File.deleteOne({_id: request.file.id }); // Also delete the file metadata stored in MongoDB
+                return response.redirect("/acc/home"); // Go back to home after deletion
+            }
+            else {
+                return response.status(500); // Error deleting file
+            }
+            
+        } // TODO: Later, do deletion whitelist
+        else {
+            return response.sendStatus(403); // Forbidden, not allowed to delete
+        }
     }
 )
 
