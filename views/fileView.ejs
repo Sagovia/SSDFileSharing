@@ -6,13 +6,13 @@
     <title>Document</title>
 </head>
 <body>
-    Account homepage. 
-    <br>3
-    Currently logged in as <%= locals.username %>
     <div>
-        Here's a list of files you've uploaded:
-        <br>
-        <%= locals.fileNames %>
+        File details:
     </div>
+    <ul>
+        <li><%= locals.fileLink %></li>
+        <li><%= locals.fileName %></li>
+        <li><%= locals.downloadCount %></li>
+    </ul>
 </body>
 </html>

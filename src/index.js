@@ -52,6 +52,62 @@ app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep 
 app.use(passport.initialize());
 app.use(passport.session()); //
 
+// Custom middleware:
+const renderFileView = (req, res) => {
+    const requestedFile = req.file;
+    const requestedFileName = requestedFile.name;
+    const requestedFileDownloadCount = requestedFile.downloadCount;
+    const requestedFileLink = `${req.protocol}://${req.get('host')}/file/${requestedFile.id}`;
+
+    res.render("fileView", { fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount });
+};
+
+
+// Will validate that a given file of route parameter id actually exists
+const validateFile = async (req, res, next) => {
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) { // Check if given request parameter id is valid or not
+        return res.status(400).send("Invalid file ID");
+    }
+
+    const file = await File.findById(req.params.id);
+    if (!file) return res.status(404).send("File not found");
+
+    req.file = file; // Attach file to request for next middlewares
+    next();
+};
+
+// Check If User Is the Owner
+const checkOwnership = (req, res, next) => {
+    if (req.user && req.file.owner.id.toString("hex") === req.user.id) { // If user is logged in and if user is owner of the file
+        return renderFileView(req, res); // Owner gets full access
+    }
+    next(); // Continue to whitelist or password check
+};
+
+// Check Whitelist Access for file
+const checkWhitelist = (req, res, next) => {
+    /*
+        TODO: Implement whitelist verification logic
+    */
+    next();
+};
+
+// Check Password Access for file
+const checkPassword = (req, res, next) => {
+    const inputPassword = req.body.password; //TODO: use verified value
+    
+    if (req.file.password) { // If requested file needs password
+        if (!inputPassword) { // No input password given
+            return res.render("password", { msg: "Enter password to access this file" });
+        }
+        if (!bcrypt.compareSync(req.body.password, req.file.password)) { // If wrong password
+            return res.render("password", { msg: "Incorrect password. Try again" });
+        }
+    }
+    next();
+};
+
 
 
 
@@ -137,10 +193,10 @@ app.post("/login",
 app.get("/login",
     (request, response) => {
         if(request.user) { // If logged in
-            response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc
+            return response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc
         }
         else {
-            response.render("loginPage"); // Display register page
+            return response.render("loginPage"); // Display register page
         }
     }
 )
@@ -203,7 +259,7 @@ app.get("/upload",
 app.get("/acc/home",
     async (request, response) => {
         if(!request.user) { // If NOT logged in
-            response.redirect("/login"); // Redirect to login page
+            return response.redirect("/login"); // Redirect to login page
         }
 
 
@@ -252,6 +308,171 @@ app.post("/acc/file/delete",
     }
 )
 
+// Assuming file doesn't require password, will redirect to POST /file/view/:id if it does
+// OUTPUT:
+/*
+    If owner of the file:
+        Display file info
+    If no password and no whitelist:
+        Display file info
+
+    if (whitelist exists for file):
+        if(user is on whitelist):
+            Display file info
+        else {
+            Redirect back to login page
+        }
+
+    // From now on must not be logged in as owner
+    If (password on file):
+        prompt inputPassword
+        if(no password):
+            Redirect to password input page where POST request will be made (Maybe /file/inputpassword/:id or something?)
+        else if (password != inputPassword):
+            Redirect back to password input page, show error message
+        else:
+           Display file info 
+
+*/
+
+app.get("/file/view/:id", 
+    validateFile, 
+    checkOwnership, 
+    checkWhitelist, 
+    checkPassword,
+    (request, response) => {
+        // All checks passed, render the file info
+        renderFileView(request, response);
+    }
+)
+
+/*
+app.get("/file/view/:id", 
+    async (request, response) => {
+            // TODO: Validation check for id
+            
+
+
+            
+            // Grab desired File by Id:
+            const requestedFile = await File.findById(request.params.id);
+            const user = request.user;
+            const inputPassword = request.body.password;
+
+            if(!requestedFile) { // If no such requested file
+                return response.status(404); // Return status 404
+            }
+            else { // Request file exists
+                // If user is owner of the file, always allowed to access the file
+                if(user == null) { // User is NOT logged in
+                    if(requestedFile.password != null && inputPassword != null) { // If file has password
+                        if(requestedFile.password === inputPassword) {
+                            // Grab desired info and return it
+                            const requestedFileName = requestedFile.name;
+                            const requestedFileDownloadCount = requestedFile.downloadCount;
+                            const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
+                            return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
+                        } else {
+                            return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
+                        }
+                    }
+                    else {
+                        return response.status(403).render("password"); // Render password input page
+                    }
+                }
+                
+                console.log("owner");
+                console.log(requestedFile.owner.id.toString("hex"));
+                if (requestedFile.owner.id.toString("hex") === user.id) { 
+                    // Grab desired info
+                    const requestedFileName = requestedFile.name;
+                    const requestedFileDownloadCount = requestedFile.downloadCount;
+                    const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
+                    console.log(requestedFileName);
+                    return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
+                }
+                 // User not file owner, and requested file has associated password
+                else if(requestedFile.password != null && inputPassword != null) {
+                    if(requestedFile.password === inputPassword) {
+                        // Grab desired info and return it
+                        const requestedFileName = requestedFile.name;
+                        const requestedFileDownloadCount = requestedFile.downloadCount;
+                        const requestedFileLink = `${request.protocol}://${request.get('host')}/file/${requestedFile.id}`;
+                        return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
+                    } else {
+                        return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
+                    }
+                }
+                else {
+                    return response.status(403).render("password"); // Render password input page
+                }
+            }
+        
+    }
+) 
+    */
+
+
+
+
+
+app.post("/file/view/:id", 
+    validateFile, 
+    checkOwnership, 
+    checkWhitelist, 
+    checkPassword,
+    (request, response) => {
+        // All checks passed, render the file info
+        renderFileView(request, response);
+    }
+)
+
+
+
+/*
+// Assuming file requires password to view details
+app.post("/file/view/:id", 
+    async (request, response) => {
+            // TODO: Validation check for id
+            
+            
+            // Grab desired File by Id:
+            const requestedFile = await File.findById(request.params.id);
+            const user = request.user;
+            const inputPassword = request.body.password;
+
+            if(!requestedFile) { // If no such requested file
+                return response.status(404); // Return status 404
+            }
+            else { // Request file exists
+                // If user is owner of the file, always allowed to access the file
+                if(requestedFile.owner.id === user.id) { 
+                    // Grab desired info
+                    const requestedFileName = requestedFile.name;
+                    const requestedFileDownloadCount = requestedFile.downloadCount;
+                    const requestedFileLink = `${request.headers.origin}/file/${requestedFile.id}`;
+                    return response.render("fileView", {requestedFileName, requestedFileLink, requestedFileDownloadCount});
+                }
+                 // User not file owner, and requested file has associated password
+                else if(requestedFile.password != null && inputPassword != null) {
+                    if(requestedFile.password === inputPassword) {
+                        // Grab desired info and return it
+                        const requestedFileName = requestedFile.name;
+                        const requestedFileDownloadCount = requestedFile.downloadCount;
+                        const requestedFileLink = `${request.headers.origin}/file/${requestedFile.id}`;
+                        return response.render("fileView", {fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
+                    } else {
+                        return response.render("password", {msg: "Password incorrect. Try again"}); // Need to try inputting password again
+                    }
+                }
+                else {
+                    return response.status(403).render("password"); // Render password input page
+                }
+            }
+        
+    }
+) 
+    */
 
 
 // Used for attempting to download a file with a given id
