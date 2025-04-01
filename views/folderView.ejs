@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= folderName %> - Folder View</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    .folder-header {
+      border-bottom: 2px solid #ccc;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+    }
+    .folder-header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    .folder-header p {
+      margin: 5px 0;
+      color: #555;
+    }
+    .permissions {
+      margin: 10px 0;
+      padding: 10px;
+      background: #e8e8e8;
+      border-radius: 5px;
+    }
+    .permissions p {
+      margin: 0 0 5px 0;
+      font-weight: bold;
+    }
+    .permissions ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    .permissions li {
+      margin: 3px 0;
+    }
+    .file-list-container h2 {
+      margin-top: 0;
+    }
+    ul.file-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    ul.file-list li {
+      background: #fff;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="folder-header">
+    <h1><%= folderName %></h1>
+    <p>Owner: <%= folderOwnerName %></p>
+    <% if (!isOwner) { %>
+      <div class="permissions">
+        <p>Your Permissions:</p>
+        <ul>
+          <li>Edit: <%= canEdit ? 'Yes' : 'No' %></li>
+          <li>View: <%= canView ? 'Yes' : 'No' %></li>
+          <li>Delete: <%= canDelete ? 'Yes' : 'No' %></li>
+        </ul>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="file-list-container">
+    <h2>Files in this Folder:</h2>
+    <ul class="file-list">
+      <% if (listOfContainedFilesNames && listOfContainedFilesNames.length > 0) { %>
+        <% listOfContainedFilesNames.forEach(function(fileName) { %>
+          <li><%= fileName %></li>
+        <% }); %>
+      <% } else { %>
+        <li>No files in this folder.</li>
+      <% } %>
+    </ul>
+  </div>
+  <a href="<%= folderUploadLink %>">Upload a file to this folder</a>
+</body>
+</html>

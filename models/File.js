@@ -29,9 +29,17 @@ const fileSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User', // Refers to the User model 
         // Not required, owner can be null if file is uploaded by user with no account
+    },
+    viewWhitelist: [{ 
+        type: Schema.Types.ObjectId, 
+        ref: 'User' 
+    }],
+    parentFolder: { // null if no parent folder
+        type: Schema.Types.ObjectId, 
+        ref: 'Folder' 
     }
     /*
-    TODO: Will need to add other related info here, like whitelisted users that can access the file, description maybe, upload date etc.
+    TODO: Will need to add other related info here, description maybe, upload date etc.
     */
 })
 

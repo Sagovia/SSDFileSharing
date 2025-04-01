@@ -14,7 +14,23 @@ const passport = require("passport"); // TODO: Remember to download + implement 
 const upload = multer({dest: "uploads"})
 require("../strategies/local-strategy.js"); // Import our local strategy for Passport.js authentication
 const User = require('../models/User.js'); // Import our mongoose User object
+const Folder = require('../models/Folder.js'); // Import our mongoose Folder object
 const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
+const {query, validationResult, body, matchedData, checkSchema} = require('express-validator'); // Import express-validator
+
+
+
+// Import middlewares:
+const {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, checkPassword, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder} = require("../utils/middlewares.js");
+
+// Validation schemas
+const userValidationSchema = require("../validationSchemas/userValidationSchema.js");
+const fileValidationSchema = require("../validationSchemas/fileValidationSchema.js");
+
+
+// Import helper functions
+const {hashPassword, deleteFile, renderFileView, renderHomepage} = require('../utils/helpers.js'); 
+
 
 // TODO: Login session expires even if in use, want it to last longer
 
@@ -53,100 +69,6 @@ app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep 
 app.use(passport.initialize());
 app.use(passport.session()); //
 
-// Custom middleware:
-const renderFileView = (req, res) => {
-    const requestedFile = req.file;
-    const requestedFileName = requestedFile.name;
-    const requestedFileDownloadCount = requestedFile.downloadCount;
-    const requestedFileLink = `${req.protocol}://${req.get('host')}/file/${requestedFile.id}`;
-
-    res.render("fileView", { fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount });
-};
-
-
-// Will validate that a given file of route parameter id actually exists
-const validateFile = async (req, res, next) => {
-
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) { // Check if given request parameter id is valid or not
-        return res.status(400).send("Invalid file ID");
-    }
-
-    const file = await File.findById(req.params.id);
-    if (!file) return res.status(404).send("File not found");
-
-    req.file = file; // Attach file to request for next middlewares
-    next();
-};
-
-// Check If User Is the Owner
-const checkOwnership = (req, res, next) => {
-    if (req.user && req.file.owner.id.toString("hex") === req.user.id) { // If user is logged in and if user is owner of the file
-        return renderFileView(req, res); // Owner gets full access
-    }
-    next(); // Continue to whitelist or password check
-};
-
-// Check Whitelist Access for file
-const checkWhitelist = (req, res, next) => {
-    /*
-        TODO: Implement whitelist verification logic
-    */
-    next();
-};
-
-// Check Password Access for file
-const checkPassword = (req, res, next) => {
-    const inputPassword = req.body.password; //TODO: use verified value
-    
-    if (req.file.password) { // If requested file needs password
-        if (!inputPassword) { // No input password given
-            return res.render("password", { msg: "Enter password to access this file" });
-        }
-        if (!bcrypt.compareSync(req.body.password, req.file.password)) { // If wrong password
-            return res.render("password", { msg: "Incorrect password. Try again" });
-        }
-    }
-    next();
-};
-
-
-// Delete given file, returns true upon successful deletion, false if otherwise
-const deleteFile = async (file) => {
-        fs = require('fs')
-        const path = file.pathToFile
-        await fs.unlink(path, (err) => {
-        if (err) {
-            console.error(err)
-            return false; // Error deleting file
-        }})
-        return true;
-}
-
-const renderHomepage = async (request, response) => {
-    // Now user is logged in, so display some basic info, such as created folders, uploaded files
-    const files = await File.find({ owner: request.user.id });
-    const fileNames = files.map((file) => file.name);
-    const username = request.user.username;
-    console.log(files);
-
-
-    // Generate a list of links to view details about each file's info: (format: http://localhost:3000/file/view/[file id])
-    // Generate file detail links
-    const fileDetailLinks = files.map((curFile) => 
-    `${request.protocol}://${request.get('host')}/file/view/${curFile.id}`
-    );
-
-    // Generate list of links to delete file (format http://localhost:3000/file/delete/[file id])
-    const fileDeletionLinks = files.map((curFile) => 
-        `${request.protocol}://${request.get('host')}/file/delete/${curFile.id}`
-        );
-    
-    
-
-
-    // Render homepage
-    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks});
-}
 
 
 
@@ -180,28 +102,42 @@ Input:  {
 
 
 // For registering for an account. If user is already logged in, will just redirect to /acc
-// TODO: Still need to integrate session middleware into this
+// Input: Accepts username, password, email
+// Output: Errors if invalid input, will redirect to /login upon success
 app.post("/register",
+    checkSchema(userValidationSchema), // Validation for user register info
     async (request, response) => {
-        const data = request.body; // TODO: For now assume data is accurate, later add input validation
-        console.log(request.body);
+        console.log("Inside POST /register");
+
+        const validationErrors = validationResult(request);
+        if(!validationErrors.isEmpty()) { // Errors in input
+            console.log("POST /register input invalid");
+            return response.status(400).send({errors: validationErrors.array()}); 
+        }
+
+        const data = matchedData(request);
+
+        // Hash password
+        data.password = hashPassword(data.password);
+
         const newUser = new User(data);
 
-        try {
+        try { // Try saving new user to database
             const savedUser = await newUser.save();
             return response.redirect("/login"); // Successful registering, go to login page
         }
         catch(err) {
             console.log(err);
-            return response.sendStatus(401);
+            return response.status(401).send(err);
         }
     }
 )
 
+// Will display registerPage if not logged in, redirect to /acc/home otherwise
 app.get("/register",
     (request, response) => {
-        console.log(request.session.user);
-        if(request.user) {
+        console.log("Inside GET /register");
+        if(request.user) { // If logged in
             response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc/home
         }
         else {
@@ -218,7 +154,7 @@ app.get("/register",
 app.post("/login",
     passport.authenticate("local"), 
     (request, response) => {
-        if(request.user == null) {
+        if(request.user == null) { // If login not successful
             // Return back to /index, and send the link to the file back:
             // TODO: Make error message more specific, can do via passing message object in done() in strategy definition
             response.render("loginPage", {msg : `Invalid credentials, please try again.`});
@@ -248,36 +184,72 @@ app.get("/login",
 // Output: Success message upon logging out, or just redirecting to / if already logged out
 app.post("/logout",
     (request, response) => {
-
+        request.session.destroy(() => {
+            response.clearCookie("connect.sid"); // Clear session cookie
+            response.redirect("/"); // Redirect to home page
+        });
     }
 )
 
 
-// This is specifically for uploading files
-// Input: File, isPrivate, user (of course), parentFolder (Optional)
-// If isPrivate: Provide: List of whitelisted usernames whitelistView, whitelistAdd
 
-// Output: Will provide a link to access file, will return via ejs
-// TODO: Make sure to verify parentFolder is actually valid and allows to be added to
+
+// This is specifically for uploading files to your account (Not a folder)
+// Input: password, parentFolderID (Optional), isPrivate + viewWhitelistUsernames string (optional)
 app.post("/upload",
-    upload.single("file"),
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    upload.single("file"), // Upload file
+    resolveFolderIDtoFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    verifyPrivateWhitelist, // Checks given whitelist, adds .viewWhitelist to request if everything's valid
+    multerFileValidationCheck, // Will validate uploaded file info + sanitize file name
     async (request, response) => {
+        console.log("Inside POST /upload");
+
+        // upload.single("file")
         const inputFile = {
             // Use multer's file added to request for this
             pathToFile: request.file.path,
             name: request.file.originalname,
-            owner: request.user?.id ?? request.user ?? null
-
+            owner: request.user?.id ?? request.user ?? null, // Add owner if user is logged in, null as default to indicate no owner
         }
 
-        if(request.body.password != null && request.body.password != "") { // If password exists, replace later with proper validation checks
-             inputFile.password = bcrypt.hashSync(request.body.password, 10); // Create helper function later
+        const passwordValidationErrors = validationResult(request);
+
+        if(!passwordValidationErrors.isEmpty()) {
+            return response.status(400).send({errors: result.array()}); 
+        }
+
+        const data = matchedData(request);
+        if(data.password != null) {
+            data.password = hashPassword(data.password)
+            inputFile.password = data.password;
+        }
+
+        inputFile.viewWhitelist = request.viewWhitelist; // Already been validated
+
+        if(request.folder != null) { // Now consider if uploading to a folder
+            if(!request.isFolderOwner && !request.canEditFolder) { // Has no permissions to upload to folder
+                return response.status(403).send("No permissions to add to this folder"); 
+            }
+            // Folder selection valid, update parentFolder for new file
+            inputFile.parentFolder = request.folder;
         }
 
         // Add metadata entry to Mongo database
         const newFile = new File(inputFile);
         await newFile.save();
-        
+
+        // Add new file to desired parent folder, if applicable
+        const folder = request.folder;
+        if(folder) { // If requested folder exists and allowed to upload to it
+            folder.filesContained.push(newFile); // File now added to the folder
+            await folder.save();
+            console.log(folder);
+            console.log("file added to folder");
+        }
+
         console.log("Created file:")
         console.log(newFile);
 
@@ -287,10 +259,117 @@ app.post("/upload",
 
 
 app.get("/upload", 
-    (request, response) => { // TODO: Clean up
-        response.render("index");
+    (request, response) => {
+        if(request.query.parentFolderID != null) { // If uploading to a folder, pass the parentFolderID for the upload
+            const parentFolderID = request.query.parentFolderID;
+            console.log("Testing11");
+            console.log(parentFolderID);
+            return response.render("index", {parentFolderID});
+        }
+        // Otherwise not needed
+        return response.render("index");
     }
 )
+
+
+app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    checkWhitelist, // attach request.canViewFile
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    checkPassword, // Will redirect to password screen if password not given or incorrect
+    (request, response) => {
+        if(request.folder) { // If file is in a parent folder
+            if(!(request.isFolderOwner || request.canViewFolder)) {
+                return response.status(403).send("No permissions to view files within the parent folder"); 
+            }
+            // User allowed to access folder, continue:
+            renderFileView(request, response);
+        }
+
+        // Now consider case where there's no parent folder:
+        if(!(request.isFileOwner || request.canViewFile)) {
+            return response.status(403).send("No permissions to view this file."); 
+        }
+        // All checks passed, allow viewing of file info:
+        renderFileView(request, response);
+    }
+)
+
+
+
+
+
+
+/*
+app.post("/file/view/:id",  
+    validateFile, 
+    checkOwnership, 
+    checkWhitelist, 
+    checkPassword,
+    (request, response) => {
+        // All checks passed, render the file info
+        renderFileView(request, response);
+    }
+)
+*/
+
+
+// Specifically for logged in users, will attempt to delete the file (assuming they own it + it exists)
+// Input: fileName
+// Output: Success or failure + error message
+// TODO: Be very careful with how you decide what they can delete, make sure that they can't input a file path to somewhere else
+app.post("/file/delete/:id",
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    checkWhitelist, // attach request.canViewFile
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    checkPassword, // Will redirect to password screen if password needed but not given or incorrect
+    async (request, response) => {
+        console.log("Inside POST /file/delete")
+        /*
+        Logic:
+        If (File is in a folder):
+            if(folder is public):
+                Allow deletion
+            else if(User on folder deletion whitelist):
+                Allow deletion
+        else if(user owns file):
+            Allow deletion
+        else if(Not logged in):
+            Redirect to /login
+        else:
+            Error, permission denied
+        */
+        if(request.folder) { // If file is in folder
+            if(!request.folder.isPrivate) { // If folder is public
+                await deleteFile(request.file);
+                return response.redirect("/acc/folder/:" + request.folder.id); // Go to folder view
+
+            }
+            if(request.isFolderOwner || request.canDeleteFolder) {
+                await deleteFile(request.file);
+                return response.redirect("/acc/folder/:" + request.folder.id); // Go to folder view
+            }
+        }
+        else if (request.isFileOwner){
+            await deleteFile(request.file);
+            return response.redirect("/acc/home"); // Go to account homepage
+        }
+        else if(request.user == null) { // Not logged in
+            return response.redirect("/login");
+        }
+        else {
+            return response.status(400).send("Permission to delete file denied");
+        }
+    }
+)
+
 
 
 
@@ -309,12 +388,58 @@ app.get("/acc/home",
 
 
 
+
 // Specifically for logged in users, will attempt to view the folder of the given folder ID
 // Input: Folder id
 // Output: If folder exists + correct permissions, will return array of files that belong in the folder
 app.get("/acc/folder/:id",
-    (request, response) => {
+    validateFolder, // Adds request.folder if folder request is valid
+    checkFolderOwnership, // Adds .isFolderOwner to request
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request
+    async (request, response) => {
 
+        const folder = request.folder;
+        const listOfContainedFiles = await Promise.all(folder.filesContained.map(async (curFileId) => {
+            return await File.findById(curFileId); 
+        })); // Will return list of File objects contained by the Folder
+
+        const listOfContainedFilesNames = listOfContainedFiles.map((file) => file.name);
+
+        const folderName = folder.name;
+        const folderOwner = await User.findById(folder.owner);
+        const folderOwnerName = folderOwner.username;
+
+        // "/upload"
+        // Generate link to folder upload page
+        const folderUploadLink = `${request.protocol}://${request.get('host')}/upload?parentFolderID=` + folder.id;
+        console.log(folderUploadLink);
+
+        console.log(folderOwnerName);
+
+        const canEdit = request.canEditFolder;
+        const canView = request.canEditFolder;
+        const canDelete = request.canDeleteFolder;
+
+        const isOwner = request.isFolderOwner;
+
+        if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
+            response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete}); // TODO: Create page to show all folder content
+        }
+        else {
+            response.sendStatus(403); // Unauthorized to view folder
+        }
+
+
+    }
+)
+
+
+app.get("/acc/createFolder",
+    (request, response) => {
+        if(request.user == null) { // User not logged in, redirect to /login
+            response.redirect("/login");
+        }
+        response.render("folderCreationPage");
     }
 )
 
@@ -325,109 +450,49 @@ app.get("/acc/folder/:id",
 // Output: Success message, or reason for failure
 app.post("/acc/createFolder",
     upload.single("file"),
-    (request, response) => {
-
-    }
-)
-
-// Specifically for logged in users, will attempt to delete the file (assuming they own it + it exists)
-// Input: fileName
-// Output: Success or failure + error message
-// TODO: Be very careful with how you decide what they can delete, make sure that they can't input a file path to somewhere else
-app.post("/file/delete/:id",
-    validateFile, // Middleware to validate file by given ID exists, will attach it to request if so
     async (request, response) => {
-        /*
-        Logic:
-        If (owner of the file):
-            Allow deletion
-        else if (In whitelist for allowing deletion) // TODO: Implement whitelist features related to deletion
-            Allow deletion
-        else if(Not logged in):
-            Redirect to /login
-        else:
-            Error, permission denied
-        */
+
+        // TODO Add input validation later
+        const folderName = request.body.folderName;
+        const isPrivate = request.body.isPrivate === "true"; // Convert to boolean, by default html sends nothing when checkbox is not set
+
+
+        const fileData = {
+            isPrivate: isPrivate,
+            name: folderName,
+            owner: request.user.id,
+            filesContained: [],
+            viewWhitelist: [],
+            editWhitelist: [],
+            deleteWhitelist: []
+        }
+
+
+        if(isPrivate) {
+            const viewWhitelist = request.body.viewWhitelist;
+            const editWhitelist = request.body.editWhitelist;
+            const deleteWhitelist = request.body.deleteWhitelist;
+
+            fileData.viewWhitelist = viewWhitelist;
+            fileData.editWhitelist = editWhitelist;
+            fileData.deleteWhitelist = deleteWhitelist;
+        }
+
+    
+        newFolder = new Folder(fileData);
+
+        await newFolder.save();
         
-        if(!request.user) { // User signed out, don't allow deletion, redirect to login page
-            return response.redirect("/login");
-        }
-        else if(request.file.owner == null) { // File was uploaded by person with no account, deletion not available (will have to wait)
-            return response.redirect("/login");
-        }
-        else if (request.file.owner.id.toString("hex") === request.user.id) { // If user is logged in and if user is owner of the file
-            // Allow deletion
-            const fileIsDeleted = await deleteFile(request.file); // Delete the file itself
-            if(fileIsDeleted) {
-                console.log(request.file.id);
-                await File.deleteOne({_id: request.file.id }); // Also delete the file metadata stored in MongoDB
-                return response.redirect("/acc/home"); // Go back to home after deletion
-            }
-            else {
-                return response.status(500); // Error deleting file
-            }
-            
-        } // TODO: Later, do deletion whitelist
-        else {
-            return response.sendStatus(403); // Forbidden, not allowed to delete
-        }
-    }
-)
+        console.log("Created folder:")
+        console.log(newFolder);
 
-// Assuming file doesn't require password, will redirect to POST /file/view/:id if it does
-// OUTPUT:
-/*
-    If owner of the file:
-        Display file info
-    If no password and no whitelist:
-        Display file info
+        const linkToViewNewFolder = '/acc/folder/' + newFolder.id;
 
-    if (whitelist exists for file):
-        if(user is on whitelist):
-            Display file info
-        else {
-            Redirect back to login page
-        }
-
-    // From now on must not be logged in as owner
-    If (password on file):
-        prompt inputPassword
-        if(no password):
-            Redirect to password input page where POST request will be made (Maybe /file/inputpassword/:id or something?)
-        else if (password != inputPassword):
-            Redirect back to password input page, show error message
-        else:
-           Display file info 
-
-*/
-
-app.get("/file/view/:id",  //TODO Input validation
-    validateFile, 
-    checkOwnership, 
-    checkWhitelist, 
-    checkPassword,
-    (request, response) => {
-        // All checks passed, render the file info
-        renderFileView(request, response);
+        response.redirect(linkToViewNewFolder);
     }
 )
 
 
-
-
-
-
-
-app.post("/file/view/:id",  //TODO Input validation
-    validateFile, 
-    checkOwnership, 
-    checkWhitelist, 
-    checkPassword,
-    (request, response) => {
-        // All checks passed, render the file info
-        renderFileView(request, response);
-    }
-)
 
 
 

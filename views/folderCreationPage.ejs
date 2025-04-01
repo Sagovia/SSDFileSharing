@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Folder</title>
+</head>
+<body>
+    <h1>Create a New Folder</h1>
+    
+    <form action="/acc/createFolder" method="POST">
+        <label for="folderName">Folder Name:</label>
+        <input type="text" id="folderName" name="folderName" required>
+        <br><br>
+
+        <label for="isPrivate">Private Folder?</label>
+        <input type="checkbox" id="isPrivate" name="isPrivate">
+        <br><br>
+
+        <div id="whitelistSection" style="display: none;">
+            <label for="whitelistView">View Whitelist (comma-separated usernames):</label>
+            <input type="text" id="whitelistView" name="whitelistView">
+            <br><br>
+
+            <label for="whitelistAdd">Edit Whitelist (comma-separated usernames):</label>
+            <input type="text" id="whitelistAdd" name="whitelistAdd">
+            <br><br>
+        </div>
+
+        <button type="submit">Create Folder</button>
+    </form>
+
+    <script>
+        // Show/hide whitelist input fields when "Private Folder?" checkbox is checked
+        document.getElementById("isPrivate").addEventListener("change", function() {
+            document.getElementById("whitelistSection").style.display = this.checked ? "block" : "none";
+        });
+    </script>
+</body>
+</html>

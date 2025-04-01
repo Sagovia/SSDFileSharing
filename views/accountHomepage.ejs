@@ -7,14 +7,31 @@
 </head>
 <body>
     <h1>Welcome, <%= username %>!</h1>
+
+    <a href="<%= uploadLink %>"  rel="noopener noreferrer">Upload a file</a>
     
     <h2>Your Uploaded Files</h2>
     <ul>
         <% fileNames.forEach((fileName, index) => { %>
             <li>
                 <%= fileName %>: 
-                <a href="<%= fileDetailLinks[index] %>" target="_blank" rel="noopener noreferrer">View Details</a>,
-                <a href="<%= fileDeletionLinks[index] %>" target="_blank" rel="noopener noreferrer">Delete file</a>,
+                <a href="<%= fileDetailLinks[index] %>" rel="noopener noreferrer">View Details</a>,
+                <!-- Secure Delete Button using POST request -->
+                <form action="<%= fileDeletionLinks[index] %>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                    <button type="submit">Delete File</button>
+                </form>
+            </li>
+        <% }); %>
+    </ul>
+
+    <h2>Your Folders</h2>
+    <!-- TODO: Update this so that it works for folders -->
+    <a href="<%= createFolderLink %>"  rel="noopener noreferrer">Create a new folder</a>
+    <ul>
+        <% folderNames.forEach((folderName, index) => { %>
+            <li>
+                <%= folderName %>: 
+                <a href="<%= viewFolderLinks[index] %>" rel="noopener noreferrer">Open folder</a>,
                 <!-- Secure Delete Button using POST request -->
                 <form action="<%= fileDeletionLinks[index] %>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this file?');">
                     <button type="submit">Delete File</button>

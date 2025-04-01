@@ -2,6 +2,8 @@ const passport = require("passport");
 const Strategy = require("passport-local");
 const mongoose = require("mongoose"); // Will use MongoDB to store user data
 const User = require('../models/User.js');
+const {hashPassword} = require('../utils/helpers.js'); // Helper functions
+const bcrypt = require("bcrypt");
 
 
 passport.serializeUser((user, done) => { // Take user, return ID
@@ -30,7 +32,9 @@ module.exports = passport.use(
             // Attempt to find user via given username, will return null if none found
             const findUser = await User.findOne({username: username}); // asynchronous access
             if(!findUser) throw new Error("No user by that username");
-            if(findUser.password != password) throw new Error("Incorrect password"); //TODO Add bcrypt for hashing passwords
+            
+            const isMatch = bcrypt.compareSync(password, findUser.password);
+            if(!isMatch) throw new Error("Incorrect password"); 
 
 
             done(null, findUser); // Attach user to session for easy access
