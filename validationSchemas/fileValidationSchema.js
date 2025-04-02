@@ -9,6 +9,14 @@ const createFileValidationSchema = {
         isString: {
             errorMessage: "Password must be a string"
         }
+    },
+    isPrivate: {
+        isBoolean: {
+            errorMessage: "isPrivate must be a boolean"
+        },
+        notEmpty: {
+            errorMessage: "isPrivate must be set"
+        }
     }
 }
 

@@ -26,8 +26,11 @@ const Schema = mongoose.Schema;
 
 const folderSchema = new Schema({
     name: {
-        type: Schema.Types.String, //TODO add validation check that email makes actual sense
+        type: Schema.Types.String, 
         required: true
+    },
+    password: {
+        type: Schema.Types.String, 
     },
     owner: { // This will reference the _id of the owner, must be a User TODO: Figure out validation checking for this later
         type: Schema.Types.ObjectId,

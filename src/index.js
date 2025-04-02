@@ -21,15 +21,16 @@ const {query, validationResult, body, matchedData, checkSchema} = require('expre
 
 
 // Import middlewares:
-const {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, checkPassword, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder} = require("../utils/middlewares.js");
+const {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder, checkPasswordForFile, checkPasswordForFolder} = require("../utils/middlewares.js");
 
 // Validation schemas
 const userValidationSchema = require("../validationSchemas/userValidationSchema.js");
 const fileValidationSchema = require("../validationSchemas/fileValidationSchema.js");
+const folderValidationScema = require("../validationSchemas/folderValidationSchema.js");
 
 
 // Import helper functions
-const {hashPassword, deleteFile, renderFileView, renderHomepage} = require('../utils/helpers.js'); 
+const {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder} = require('../utils/helpers.js'); 
 
 
 // TODO: Login session expires even if in use, want it to last longer
@@ -197,13 +198,13 @@ app.post("/logout",
 // This is specifically for uploading files to your account (Not a folder)
 // Input: password, parentFolderID (Optional), isPrivate + viewWhitelistUsernames string (optional)
 app.post("/upload",
-    checkSchema(fileValidationSchema), // Validate password is valid (if given)
     upload.single("file"), // Upload file
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    multerFileValidationCheck, // Will validate uploaded file info + sanitize file name
     resolveFolderIDtoFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
     checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
     checkFolderOwnership, // Adds request.isFolderOwner
     verifyPrivateWhitelist, // Checks given whitelist, adds .viewWhitelist to request if everything's valid
-    multerFileValidationCheck, // Will validate uploaded file info + sanitize file name
     async (request, response) => {
         console.log("Inside POST /upload");
 
@@ -217,12 +218,14 @@ app.post("/upload",
 
         const passwordValidationErrors = validationResult(request);
 
-        if(!passwordValidationErrors.isEmpty()) {
-            return response.status(400).send({errors: result.array()}); 
-        }
-
         const data = matchedData(request);
+        console.log(data);
+
         if(data.password != null) {
+            if(!passwordValidationErrors.isEmpty()) {
+                deleteFile(request.file);
+                return response.status(400).send({errors: passwordValidationErrors.array()}); 
+            }
             data.password = hashPassword(data.password)
             inputFile.password = data.password;
         }
@@ -231,6 +234,7 @@ app.post("/upload",
 
         if(request.folder != null) { // Now consider if uploading to a folder
             if(!request.isFolderOwner && !request.canEditFolder) { // Has no permissions to upload to folder
+                // FIX NEEDED, TODO remove the file, it's been uploaded already
                 return response.status(403).send("No permissions to add to this folder"); 
             }
             // Folder selection valid, update parentFolder for new file
@@ -260,6 +264,7 @@ app.post("/upload",
 
 app.get("/upload", 
     (request, response) => {
+        console.log("Inside GET /upload");
         if(request.query.parentFolderID != null) { // If uploading to a folder, pass the parentFolderID for the upload
             const parentFolderID = request.query.parentFolderID;
             console.log("Testing11");
@@ -272,30 +277,95 @@ app.get("/upload",
 )
 
 
+// Input: File id as route paramter, password (optional), request.user
+// Output: Will display file if passed access controls
+
 app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
     checkSchema(fileValidationSchema), // Validate password is valid (if given)
     validateFile, // attach request.file if exists, returns err if otherwise
     checkOwnership, // attach request.isFileOwner
-    checkWhitelist, // attach request.canViewFile
+    checkWhitelist, // attach request.passesFileViewWhitelist
     resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
     checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
     checkFolderOwnership, // Adds request.isFolderOwner
-    checkPassword, // Will redirect to password screen if password not given or incorrect
+    checkPasswordForFile, // Renders password entering page if missing or incorrect
     (request, response) => {
+        console.log("Inside GET /file/view/:id");
+        console.log(request.isFileOwner);
+        console.log(request.isFolderOwner);
+        console.log(request.canViewFolder);
+        console.log(request.passesFileViewWhitelist);
+
+
+        if(request.folder) { // If file is in a parent folder
+            if(!(request.isFolderOwner || request.canViewFolder)) {
+                return response.send("No permissions to view files within the parent folder"); 
+            }
+            // User allowed to access folder, continue:
+            return renderFileView(request, response);
+        }
+
+
+        // Now consider case where there's no parent folder:
+        if(request.isFileOwner || request.passesFileViewWhitelist) {
+            return renderFileView(request, response);
+        }
+
+        // Now check password if nothing else validated the user
+        if(request.correctFilePassword) {
+            return renderFileView(request, response);
+        }
+        else {
+            console.log("test");
+            return response.render("password");
+        }
+
+        
+        return response.status(403).send("No permissions to view this file."); 
+    }
+)
+
+// If we need to enter password to view the file details
+app.post("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    checkWhitelist, // attach request.passesFileViewWhitelist
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    checkPasswordForFile, // Renders password entering page if missing or incorrect
+    (request, response) => {
+        console.log("Inside GET /file/view/:id");
+        console.log(request.isFileOwner);
+        console.log(request.isFolderOwner);
+        console.log(request.canViewFolder);
+        console.log(request.passesFileViewWhitelist);
+
         if(request.folder) { // If file is in a parent folder
             if(!(request.isFolderOwner || request.canViewFolder)) {
                 return response.status(403).send("No permissions to view files within the parent folder"); 
             }
             // User allowed to access folder, continue:
-            renderFileView(request, response);
+            return renderFileView(request, response);
         }
 
+
         // Now consider case where there's no parent folder:
-        if(!(request.isFileOwner || request.canViewFile)) {
-            return response.status(403).send("No permissions to view this file."); 
+        if(request.isFileOwner || request.passesFileViewWhitelist) {
+            return renderFileView(request, response);
         }
-        // All checks passed, allow viewing of file info:
-        renderFileView(request, response);
+
+        // Now check password if nothing else validated the user
+        if(request.correctFilePassword) {
+            return renderFileView(request, response);
+        }
+        else {
+            return response.render("password");
+        }
+
+        
+        return response.status(403).send("No permissions to view this file."); 
     }
 )
 
@@ -329,7 +399,7 @@ app.post("/file/delete/:id",
     resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
     checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
     checkFolderOwnership, // Adds request.isFolderOwner
-    checkPassword, // Will redirect to password screen if password needed but not given or incorrect
+    checkPasswordForFile, // Will redirect to password screen if password needed but not given or incorrect
     async (request, response) => {
         console.log("Inside POST /file/delete")
         /*
@@ -371,6 +441,119 @@ app.post("/file/delete/:id",
 )
 
 
+// Used for attempting to download a file with a given id, no password input
+app.get("/file/:id",
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    checkWhitelist, // attach request.passesFileViewWhitelist
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    checkPasswordForFile, // Adds request.correctFilePassword
+    async (request, response) => {
+        console.log("Inside GET /file/:id");
+
+        const requestedFile = request.file;
+
+        if(request.folder) { // If file is in a parent folder
+            if(!(request.isFolderOwner || request.canViewFolder)) {
+                return response.status(403).send("No permissions to download files within the parent folder"); 
+            }
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+
+
+        // Now consider case where there's no parent folder:
+        if(request.isFileOwner || request.passesFileViewWhitelist) {
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+
+        // Now check password if nothing else validated the user
+        if(request.correctFilePassword) {
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+        else {
+            return response.render("password");
+        }
+
+        
+        return response.status(403).send("No permissions to view this file."); 
+    }
+)
+
+// Used for attempting to download a file with a given id, with password provided
+app.post("/file/:id",
+    checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    checkWhitelist, // attach request.passesFileViewWhitelist
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request based on request.folder
+    checkFolderOwnership, // Adds request.isFolderOwner
+    checkPasswordForFile, // Adds request.correctFilePassword
+    async (request, response) => {
+        console.log("Inside POST /file/:id");
+
+        const requestedFile = request.file;
+
+        if(request.folder) { // If file is in a parent folder
+            if(!(request.isFolderOwner || request.canViewFolder)) {
+                return response.status(403).send("No permissions to download files within the parent folder"); 
+            }
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+
+
+        // Now consider case where there's no parent folder:
+        if(request.isFileOwner || request.passesFileViewWhitelist) {
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+
+        // Now check password if nothing else validated the user
+        if(request.correctFilePassword) {
+            // User allowed to access folder, continue:
+            // Update downloadCount
+            requestedFile.downloadCount++;
+            await requestedFile.save();
+            // Download file for user
+            return response.download(requestedFile.pathToFile, requestedFile.name);
+        }
+        else {
+            return response.render("password");
+        }
+
+        
+        return response.status(403).send("No permissions to view this file."); 
+    }
+)
+
+
 
 
 // Home page for logged in users, will display options (create new folder, upload new file), view user's current folders and uploaded files
@@ -393,10 +576,29 @@ app.get("/acc/home",
 // Input: Folder id
 // Output: If folder exists + correct permissions, will return array of files that belong in the folder
 app.get("/acc/folder/:id",
+    checkSchema(fileValidationSchema), // Validates folder password is valid
     validateFolder, // Adds request.folder if folder request is valid
     checkFolderOwnership, // Adds .isFolderOwner to request
     checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request
+    checkPasswordForFolder, // Adds request.correctFolderPassword
     async (request, response) => {
+        console.log("Inside GET /acc/folder/:id");
+        console.log(request.isFolderOwner);
+        console.log(request.canViewFolder);
+        console.log(request.canDeleteFolder);
+        console.log(request.canEditFolder);
+        console.log(request.correctFolderPassword);
+        /*
+            TODO:
+            if(owns file or .canViewFolder or is public folder):
+                Render folderView
+            else if(folder has password and user enters it correctly):
+                Grant them temp session access via req.session.tempFolderAccess 
+            else:
+                Reject user
+        */
+
+        
 
         const folder = request.folder;
         const listOfContainedFiles = await Promise.all(folder.filesContained.map(async (curFileId) => {
@@ -412,22 +614,122 @@ app.get("/acc/folder/:id",
         // "/upload"
         // Generate link to folder upload page
         const folderUploadLink = `${request.protocol}://${request.get('host')}/upload?parentFolderID=` + folder.id;
+        const homepageLink = `${request.protocol}://${request.get('host')}/acc/home`;
         console.log(folderUploadLink);
 
         console.log(folderOwnerName);
 
         const canEdit = request.canEditFolder;
-        const canView = request.canEditFolder;
+        let canView = request.canViewFolder;
         const canDelete = request.canDeleteFolder;
+
+        const isLoggedIn = request.user != null;
+        const isOwner = request.isFolderOwner;
+
+        // Either user entered right password or they already have previously
+        if((folder.password != null && request.correctFolderPassword) || (request.session.tempFolderAccess != null && request.session.tempFolderAccess.includes(folder.id))) {
+            // Grant temp access to folder
+            if(!request.session.tempFolderAccess) {
+                request.session.tempFolderAccess = [];
+            }
+            request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
+
+            canView = true; // Can view if they have password
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+        }
+
+
+        if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+        }
+
+        if(folder.password) {
+            return response.render("password");
+        }
+
+        
+        return response.send("Unauthorized to view folder"); // Unauthorized to view folder
+        
+
+
+    }
+)
+
+app.post("/acc/folder/:id",
+    checkSchema(fileValidationSchema), // Validates folder password is valid
+    validateFolder, // Adds request.folder if folder request is valid
+    checkFolderOwnership, // Adds .isFolderOwner to request
+    checkFolderWhitelist, //  // Adds .canViewFolder .canDeleteFolder .canEditFolder to request
+    checkPasswordForFolder, // Adds request.correctFolderPassword
+    async (request, response) => {
+        console.log("Inside GET /acc/folder/:id");
+        console.log(request.isFolderOwner);
+        console.log(request.canViewFolder);
+        console.log(request.canDeleteFolder);
+        console.log(request.canEditFolder);
+        console.log(request.correctFolderPassword);
+        /*
+            TODO:
+            if(owns file or .canViewFolder or is public folder):
+                Render folderView
+            else if(folder has password and user enters it correctly):
+                Grant them temp session access via req.session.tempFolderAccess 
+            else:
+                Reject user
+        */
+
+        
+
+        const folder = request.folder;
+        const listOfContainedFiles = await Promise.all(folder.filesContained.map(async (curFileId) => {
+            return await File.findById(curFileId); 
+        })); // Will return list of File objects contained by the Folder
+
+        const listOfContainedFilesNames = listOfContainedFiles.map((file) => file.name);
+
+        const folderName = folder.name;
+        const folderOwner = await User.findById(folder.owner);
+        const folderOwnerName = folderOwner.username;
+
+        // "/upload"
+        // Generate link to folder upload page
+        const folderUploadLink = `${request.protocol}://${request.get('host')}/upload?parentFolderID=` + folder.id;
+        const homepageLink = `${request.protocol}://${request.get('host')}/acc/home`;
+        console.log(folderUploadLink);
+
+        console.log(folderOwnerName);
+
+        const canEdit = request.canEditFolder;
+        let canView = request.canViewFolder;
+        const canDelete = request.canDeleteFolder;
+        const isLoggedIn = request.user != null;
 
         const isOwner = request.isFolderOwner;
 
+        // Either user entered right password or they already have previously
+        if((folder.password != null && request.correctFolderPassword) || (request.session.tempFolderAccess != null && request.session.tempFolderAccess.includes(folder.id))) {
+            // Grant temp access to folder
+            if(!request.session.tempFolderAccess) {
+                request.session.tempFolderAccess = [];
+            }
+            request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
+
+            canView = true; // Can view if they have password
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+        }
+
+
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
         }
-        else {
-            response.sendStatus(403); // Unauthorized to view folder
+
+        if(folder.password) {
+            return response.render("password");
         }
+
+        
+        return response.send("Unauthorized to view folder"); // Unauthorized to view folder
+        
 
 
     }
@@ -446,16 +748,30 @@ app.get("/acc/createFolder",
 
 // This is for logged in users who want to create a folder
 // Input: folderName, isPrivate, user (of course)
-// If isPrivate: Provide: List of whitelisted usernames whitelistView, whitelistAdd
+// If isPrivate: Provide: List of whitelisted usernames whitelistView, whitelistAdd, password is optional
 // Output: Success message, or reason for failure
 app.post("/acc/createFolder",
+    checkSchema(folderValidationScema), // Checks if password is valid + folder name + isPrivate
+    verifyPrivateWhitelist, // Verify whitelists are valid, adds request.viewWhitelist, request.editWhitelist and request.deleteWhitelist
     upload.single("file"),
     async (request, response) => {
+        console.log("Inside POST /acc/createFolder");
 
-        // TODO Add input validation later
-        const folderName = request.body.folderName;
-        const isPrivate = request.body.isPrivate === "true"; // Convert to boolean, by default html sends nothing when checkbox is not set
+        if(request.user == null) { // Not logged in
+            return response.redirect("/login");
+        }
 
+        const errors = validationResult(request);
+
+        if(!errors.isEmpty) {
+            return request.send("Errors");
+        }
+
+        const data = matchedData(request);
+
+        const folderName = data.name;
+        const isPrivate = data.isPrivate;
+        console.log(isPrivate);
 
         const fileData = {
             isPrivate: isPrivate,
@@ -469,10 +785,12 @@ app.post("/acc/createFolder",
 
 
         if(isPrivate) {
-            const viewWhitelist = request.body.viewWhitelist;
-            const editWhitelist = request.body.editWhitelist;
-            const deleteWhitelist = request.body.deleteWhitelist;
+            const password = hashPassword(data.password);
+            const viewWhitelist = request.viewWhitelist;
+            const editWhitelist = request.editWhitelist;
+            const deleteWhitelist = request.deleteWhitelist;
 
+            fileData.password = password;
             fileData.viewWhitelist = viewWhitelist;
             fileData.editWhitelist = editWhitelist;
             fileData.deleteWhitelist = deleteWhitelist;
@@ -493,105 +811,34 @@ app.post("/acc/createFolder",
 )
 
 
-
-
-
-
-// Used for attempting to download a file with a given id
-app.get("/file/:id", // TODO need to consider permissions, if the file id even exists, etc.
-    async (request, response) => {
-        // Will try to find file of model File in the database
-        console.log("before");
-
-        // This is our file metadata MongoDB entry
-        const requestedFile = await File.findById(request.params.id);
-        console.log("after");
-
-        // Check if has password
-        if(requestedFile.password != null) {
-            if(request.body.password == null) {
-                return response.status(403).render("password"); // redirect back to password page, need to create view for it (done)
+app.post("/acc/folder/delete/:id",
+    validateFolder, // Adds request.folder if folder request is valid
+    checkFolderOwnership, // Adds .isFolderOwner to request
+    (request, response) => {
+        if(request.folder) { // If requested folder to delete exists
+            if(request.isFolderOwner) {
+                deleteFolder(request.folder);
+                response.redirect("/acc/home");
+            }
+            else {
+                return response.send("Folder doesn't belong to you. Only owner can delete it");
             }
         }
-
-        // Check if file was found
-        if (!requestedFile) {
-            console.log(`File with ID ${request.params.id} not found.`);
-            return response.status(404).send("File not found.");
+        else {
+            return response.send("Invalid folder");
         }
+    }
 
-        console.log("Requested file:", requestedFile);
-
-
-
-        // Now check to see if password is valid or not: (original, hashed)
-        if(requestedFile.password != null) { 
-            if(!bcrypt.compareSync(request.body.password, requestedFile.password)) {
-                // If wrong password, redirect back to password entering screen
-                return response.render("password", {error: true});
-            }
-        }
+);
 
 
-        // Update downloadCount
-        requestedFile.downloadCount++;
-        await requestedFile.save();
-
-
-
-        // Download file for user
-        response.download(requestedFile.pathToFile, requestedFile.name);
+app.get("/acc/file/edit",
+    (request, response) => {
+        
     }
 )
 
 
-// Used for inputting password if a file is password-protected (POST will hide password in body)
-app.post("/file/:id", // TODO need to consider permissions, if the file id even exists, etc.
-    async (request, response) => {
-        // Will try to find file of model File in the database
-        console.log("before");
-
-        // This is our file metadata MongoDB entry
-        const requestedFile = await File.findById(request.params.id);
-        console.log("after");
-
-        // Check if has password
-        if(requestedFile.password != null) {
-            if(request.body.password == null) {
-                return response.status(403).render("password"); // redirect back to password page, need to create view for it (done)
-            }
-        }
-
-        // Check if file was found
-        if (!requestedFile) {
-            console.log(`File with ID ${request.params.id} not found.`);
-            return response.status(404).send("File not found.");
-        }
-
-        console.log("Requested file:", requestedFile);
-
-
-
-        // Now check to see if password is valid or not: (original, hashed)
-        if(requestedFile.password != null) {
-            if(!bcrypt.compareSync(request.body.password, requestedFile.password)) {
-                // If wrong password, redirect back to password entering screen
-                return response.render("password", {error: true});
-            }
-        }
-    
-
-
-        // Update downloadCount
-        requestedFile.downloadCount++;
-        await requestedFile.save();
-
-
-
-        // Download file for user
-        response.download(requestedFile.pathToFile, requestedFile.name);
-    }
-)
 
 
 

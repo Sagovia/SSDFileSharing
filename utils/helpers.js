@@ -15,6 +15,7 @@ const User = require('../models/User.js'); // Import our mongoose User object
 const Folder = require('../models/Folder.js'); // Import our mongoose Folder object
 const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
 const {query, validationResult, body, matchedData, checkSchema} = require('express-validator'); // Import express-validator
+const fs = require('fs').promises; // Use the promise-based version
 
 
 
@@ -27,22 +28,16 @@ const hashPassword = (password) => {
 
 
 // Input: request.file, request.folder if has parent folder
-// Output: Delete given file, returns true upon successful deletion, false if otherwise
+// Output: Delete given file + metadata, returns true upon successful deletion, false if otherwise
 const deleteFile = async (file) => { 
+    console.log("Inside helper deleteFile");
     // Delete file
 
     try {
         // Delete file from filesystem
-        fs = require('fs')
-        console.log("1");
-        await fs.unlink(file.pathToFile, (err) => {
-            if (err) {
-                console.error(err)
-                return false; // Error deleting file
-            }})
-        console.log("2");
-
+        await fs.unlink(file.pathToFile);
         // If file has a parent folder, remove it from the folder's filesContained array
+        
         if (file.parentFolder != null) {
             const parentFolder = await Folder.findById(file.parentFolder.id);
             parentFolder.filesContained = parentFolder.filesContained.filter(curFile => curFile.toString() !== file.id);
@@ -50,15 +45,34 @@ const deleteFile = async (file) => {
             
         }
 
-        // Delete the file metadata from MongoDB
-        console.log(file.id);
-        await File.findByIdAndDelete(file.id);
+        // Delete the file metadata from MongoDB (if exists)
+        if(file) {
+            console.log(file.id);
+            await File.findByIdAndDelete(file.id);
+        }
         return true;
     } catch (err) {
         console.error("Error deleting file:", err);
         return false;
     }
 }
+
+// Input: folder (assumed to be prevalidated and non-null)
+// Output: Deletes the folder and all files stored inside it
+const deleteFolder = async (folder) => {
+    // Assuming folder.filesContained is an array of file IDs (or file objects)
+    for (const fileId of folder.filesContained) {
+        // If filesContained is just IDs, fetch the file document:
+        const file = await File.findById(fileId);
+        if (file) {
+            await deleteFile(file);
+        }
+    }
+    
+    // Delete the folder itself from the database
+    await Folder.findByIdAndDelete(folder.id);
+    return true;
+};
 
 // Renders a page which displays details about the file
 // Input: Requires request.file to be present (preverified)
@@ -101,6 +115,10 @@ const renderHomepage = async (request, response) => {
         `${request.protocol}://${request.get('host')}/file/delete/${curFile.id}`
         );
     
+    const folderDeletionLinks = folders.map((curFolder) => 
+        `${request.protocol}://${request.get('host')}/acc/folder/delete/${curFolder.id}`
+        );
+    
     // Generate link to upload page
     const uploadLink = `${request.protocol}://${request.get('host')}/upload/`;
 
@@ -111,7 +129,7 @@ const renderHomepage = async (request, response) => {
 
 
     // Render homepage
-    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks, uploadLink, createFolderLink, viewFolderLinks, folderNames});
+    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks, uploadLink, createFolderLink, viewFolderLinks, folderNames, folderDeletionLinks});
 }
 
-module.exports = {hashPassword, deleteFile, renderFileView, renderHomepage};
+module.exports = {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder};

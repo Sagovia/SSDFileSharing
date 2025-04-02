@@ -22,6 +22,7 @@ const sanitizeFilename = require("sanitize-filename"); // For sanitizing multer 
 // Input: request with file id route parameter
 // Output: If file of given id exists, will attach as request.file
 const validateFile = async (req, res, next) => {
+    console.log("Inside middleware validateFile");
 
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) { // Check if given request parameter id is valid or not
         return res.status(400).send("Invalid file ID");
@@ -54,6 +55,7 @@ const validateFolder = async (request, response, next) => {
 // Input: Expects request.file
 // Output: Will attach isFileOwner to request
 const checkOwnership = (req, res, next) => {
+    console.log("Inside middleware checkOwnership");
     if (req.user && req.file.owner.id.toString("hex") === req.user.id) { // If user is logged in and if user is owner of the file
         req.isFileOwner = true;
         return next();
@@ -64,8 +66,9 @@ const checkOwnership = (req, res, next) => {
 
 // Check If User Is the Folder Owner
 const checkFolderOwnership = (request, response, next) => {
-    if(request.folder) { // If request folder exists
-        request.isFolderOwner = (request.user && request.folder.owner.id.toString("hex") === request.user.id);
+    console.log("Inside middleware checkFolderOwnership");
+    if(request.folder && request.user && request.folder.owner) { // If request folder exists
+        request.isFolderOwner = (request.folder.owner.id.toString("hex") === request.user.id);
     }
     else {
         request.isFolderOwner = false; // Default to false for nonexistent folder
@@ -75,39 +78,65 @@ const checkFolderOwnership = (request, response, next) => {
 
 // Check Whitelist Access for file
 // Input: Expects request.file and request.user
-// Output: .canViewFile attached to request
+// Output: .passesFileViewWhitelist attached to request (Will be true if no password and on whitelist, or no whitelist, but false if not on whitelist or there's password protection)
 const checkWhitelist = (request, response, next) => {
+    console.log("Inside middleware checkWhitelist");
     const file = request.file;
     const viewerUser = request.user
 
     if(file.viewWhitelist != null) { // If file whitelist is active
         if(viewerUser == null) {
-            request.canViewFile = false; // Non logged in viewer trying to access
+            request.passesFileViewWhitelist = false; // Non logged in viewer trying to access
         }
         else {
-            request.canViewFile = file.viewWhitelist.includes(viewerUser.id);
+            request.passesFileViewWhitelist = file.viewWhitelist.includes(viewerUser.id);
         }
     }
+    else if(file.password != null) { // If file is password-protected
+        request.passesFileViewWhitelist = false; // Need to enter password
+    }
     else {
-        request.canViewFile = true; // Default to can view if whitelist is off
+        request.passesFileViewWhitelist = true; // Default to can view if whitelist is off
     }
     return next();
 };
 
 // Check Whitelist Access controls for folder
-// Input: Expects request.folder and request.user
+// Input: Expects request.folder and request.user, and password (optional)
 // Output: .canViewFolder, .canEditFolder, .canDeleteFolder attached to request
 const checkFolderWhitelist = (request, response, next) => {
     const folder = request.folder;
     const viewerUser = request.user
 
-    if(request.isPrivate) {
+    if(!folder) { // If there's no parent folder, default to no permissions
+        request.canViewFolder = false;
+        request.canEditFolder = false;
+        request.canDeleteFolder = false;
+        return next();
+    }
+
+
+    if(folder.isPrivate) {
         if(viewerUser == null) { // User not logged in but trying to view private folder
-            request.canViewFolder = false;
-            request.canEditFolder = false;
-            request.canDeleteFolder = false;
+            // If folder is password-protected 
+            if(request.session.tempFolderAccess && request.session.tempFolderAccess.includes(folder.id)) {
+                request.canViewFolder = true;
+                request.canEditFolder = false;
+                request.canDeleteFolder = false;
+            }
+            else {
+                // Password protected, but hasn't entered password before, so reject
+                request.canViewFolder = false;
+                request.canEditFolder = false;
+                request.canDeleteFolder = false;
+            }
         }
-        else {
+        else if(request.isFolderOwner) { // They own the folder, give full permissions
+            request.canViewFolder = true;
+            request.canEditFolder = true;
+            request.canDeleteFolder = true;
+        }
+        else { // Else, see if the logged in user is on the whitelists
             request.canViewFolder = folder.viewWhitelist.includes(viewerUser.id);
             request.canEditFolder = folder.editWhitelist.includes(viewerUser.id);
             request.canDeleteFolder = folder.deleteWhitelist.includes(viewerUser.id);
@@ -121,25 +150,64 @@ const checkFolderWhitelist = (request, response, next) => {
     return next();
 };
 
-// Check Password Access for file (TODO)
-const checkPassword = (req, res, next) => {
+// Check Password Access for file
+// Input: Expects use of validation for password beforehand, request.file.password
+// Output: request.correctFilePassword
+const checkPasswordForFile = (req, res, next) => {
     const passwordErrors = validationResult(req);
     const data = matchedData(req);
 
     if(!passwordErrors.isEmpty()) {
-        return res.render("password", { msg: "Invalid password entered. Try again." });
+        req.correctFilePassword = false;
+        return next();
+        // return res.render("password", { msg: "Invalid password entered. Try again." });
     }
     
     if (req.file.password) { // If requested file needs password
         if (!data.password) { // No input password given
-            return res.render("password", { msg: "Enter password to access this file" });
+            req.correctFilePassword = false;
+            return next();
+            // return res.render("password", { msg: "Enter password to access this file" });
         }
         if (!bcrypt.compareSync(data.password, req.file.password)) { // If wrong password
-            return res.render("password", { msg: "Incorrect password. Try again" });
+            req.correctFilePassword = true;
+            return next();
+            // return res.render("password", { msg: "Incorrect password. Try again" });
         }
     }
-    next();
+    req.correctFilePassword = false;
+    return next();
 };
+
+// Check Password Access for folder
+// Input: Expects use of validation for password beforehand, request.folder.password
+// Output: request.correctFolderPassword
+const checkPasswordForFolder = (request, result, next) => {
+    const passwordErrors = validationResult(request).array().filter(error => error.param === "password");
+    const data = matchedData(request);
+
+    console.log(passwordErrors);
+    if(passwordErrors.length > 0) {
+        request.correctFolderPassword = false;
+        return next();
+    }
+    if(request.folder == null) {
+        request.correctFolderPassword = false;
+        return next();
+    }
+    if (request.folder.password) { // If requested file needs password
+        if (!data.password) { // No input password given
+            request.correctFolderPassword = false;
+            return next();
+        }
+        if (bcrypt.compareSync(data.password, request.folder.password)) { // If wrong password
+            request.correctFolderPassword = true;
+            return next();
+        }
+    }
+    request.correctFolderPassword = false;
+    return next();
+}
 
 
 
@@ -176,59 +244,96 @@ const folderValidationCheck = async (request, response, next) => {
 }
 
 
-// Input: request.isPrivate, request.body.viewWhitelistUsernames string
-// Output: If file isPrivate, will verify all usernames in viewWhitelistUsernames actually are users, and add request.viewWhitelist[], which contains array of user IDs instead of usernames
+// Input: request.isPrivate, request.body.viewWhitelistUsernames string, request.body.editWhitelistUsernames, request.body.deleteWhitelistUsernames
+// Output: If file isPrivate, will verify all usernames in viewWhitelistUsernames actually are users, and add request.viewWhitelist[], which contains array of user IDs instead of usernames, null if not valid
 const verifyPrivateWhitelist = async (request, response, next) => {
     console.log("Inside verifyPrivateWhitelist");
-    request.viewWhitelist = null; // Reset anything user provided
-    if (request.body.isPrivate) { 
+    request.viewWhitelist = null;   // Reset anything user provided
+    request.editWhitelist = null;
+    request.deleteWhitelist = null;
+
+    const errors = validationResult(request);
+
+    if(!errors.isEmpty) {
+        return request.send("Errors");
+    }
+
+    const data = matchedData(request);
+
+    // Only process if the file/folder is set to be private
+    if (data.isPrivate) { 
         try {
-            if(request.folder) { // If trying to upload to folder with custom whitelist, invalid, folder whitelist takes precedence
-                return response.status(400).send("Folder whitelist takes precendence");
+            // If trying to use a custom whitelist for a folder, that's not allowed
+            if (request.folder) { 
+                return response.status(400).send("Folder whitelist takes precedence");
             }
-            console.log(request.body.viewWhitelistUsernames);
-            request.viewWhitelistUsernames = request.body.viewWhitelistUsernames.trim().split(/\s+/);
-            console.log(request.viewWhitelistUsernames)
-            // Using Promise.all to wait for all the User lookups
-            const users = await Promise.all(
-                request.viewWhitelistUsernames.map(async (username) => {
-                    const user = await User.findOne({ username: username });
-                    return user ? user.id : null; // Return user ID if user exists, or null if not
+
+            // Parse the usernames from the request body (if provided)
+            const viewUsernames = request.body.viewWhitelistUsernames
+                ? request.body.viewWhitelistUsernames.trim().split(/\s+/)
+                : [];
+            const editUsernames = request.body.editWhitelistUsernames
+                ? request.body.editWhitelistUsernames.trim().split(/\s+/)
+                : [];
+            const deleteUsernames = request.body.deleteWhitelistUsernames
+                ? request.body.deleteWhitelistUsernames.trim().split(/\s+/)
+                : [];
+
+                console.log(request.body);
+
+            // Validate view whitelist: lookup each username and return user ID or null
+            const viewUsers = await Promise.all(
+                viewUsernames.map(async (username) => {
+                    const user = await User.findOne({ username });
+                    return user ? user.id : null;
                 })
             );
-
-            // Now check if any usernames were invalid
-            if (users.includes(null)) {
-                // Remove uploaded data
-                fs = require('fs')
-                await fs.unlink(request.file.destination, (err) => {
-                    if (err) {
-                        console.error(err)
-                        return false; // Error deleting file
-                    }})
-
-                return response.status(400).send("One or more usernames are invalid");
+            if (viewUsers.includes(null)) {
+                const fs = require('fs').promises;
+                await fs.unlink(request.file.path);
+                return response.status(400).send("One or more viewWhitelist usernames are invalid");
             }
 
-            // Now attach users who are on the viewing whitelist
-            request.viewWhitelist = users;
+            // Validate edit whitelist similarly
+            const editUsers = await Promise.all(
+                editUsernames.map(async (username) => {
+                    const user = await User.findOne({ username });
+                    return user ? user.id : null;
+                })
+            );
+            if (editUsers.includes(null)) {
+                const fs = require('fs').promises;
+                await fs.unlink(request.file.path);
+                return response.status(400).send("One or more editWhitelist usernames are invalid");
+            }
+
+            // Validate delete whitelist similarly
+            const deleteUsers = await Promise.all(
+                deleteUsernames.map(async (username) => {
+                    const user = await User.findOne({ username });
+                    return user ? user.id : null;
+                })
+            );
+            if (deleteUsers.includes(null)) {
+                const fs = require('fs').promises;
+                await fs.unlink(request.file.path);
+                return response.status(400).send("One or more deleteWhitelist usernames are invalid");
+            }
+
+            // Attach the validated arrays to the request for later use
+            request.viewWhitelist = viewUsers;
+            request.editWhitelist = editUsers;
+            request.deleteWhitelist = deleteUsers;
 
         } catch (error) {
-            // Remove uploaded data
-            fs = require('fs')
-                await fs.unlink(request.file.pathToFile, (err) => {
-                    if (err) {
-                        console.error(err)
-                        return false; // Error deleting file
-                    }})
-
+            const fs = require('fs').promises;
+            await fs.unlink(request.file.path);
             console.error("Error verifying private whitelist:", error);
             return response.status(500).send("Internal server error");
         }
     }
-
-    next(); // If not private, just proceed
-}
+    next();
+};
 
 
 
@@ -256,6 +361,7 @@ const multerFileValidationCheck = (request, response, next) => {
 // Input: request.file
 // Output request.parentFolderID holding the parent folder ID attached, null if file has no parent folder
 const resolveFiletoParentFolder = async (request, response, next) => {
+    console.log("Inside middleware resolveFiletoParentFolder");
 
     if (!mongoose.Types.ObjectId.isValid(request.params.id)) { // Check if given request parameter id is valid or not
         return response.status(400).send("Invalid folder ID");
@@ -264,21 +370,20 @@ const resolveFiletoParentFolder = async (request, response, next) => {
     const folder = await Folder.findById(request.params.id);
 
     request.folder = folder; // Attach folder to request for next middlewares
-    next();
-
-    request.folder = request.file.parentFolder; // attach request.folder, null if no parent folder
     return next();
 }
 
 // Input request.body.parentFolderID
 // Output: Attach request.folder for parent folder, null otherwise
 const resolveFolderIDtoFolder = async (request, response, next) => {
+    console.log("Inside middleware resolveFolderIDtoFolder");
     const folderID = request.body.parentFolderID;
 
     if(folderID == null) { // Skip if there's no folderID to resolve
         request.folder = null;
-        next();
+        return next();
     }
+
 
     if (!mongoose.Types.ObjectId.isValid(folderID)) { // Check if given request parameter id is valid or not
         return response.status(400).send("Invalid folder ID");
@@ -287,8 +392,8 @@ const resolveFolderIDtoFolder = async (request, response, next) => {
     const folder = await Folder.findById(folderID);
 
     request.folder = folder; // Attach folder to request for next middlewares
-    next();
+    return next();
 }
 
 
-module.exports = {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, checkPassword, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder};
+module.exports = {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder, checkPasswordForFile, checkPasswordForFolder};

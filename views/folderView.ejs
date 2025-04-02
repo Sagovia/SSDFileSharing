@@ -85,6 +85,15 @@
       <% } %>
     </ul>
   </div>
-  <a href="<%= folderUploadLink %>">Upload a file to this folder</a>
+  <% if (canEdit) { %> 
+      <a href="<%= folderUploadLink %>">Upload a file to this folder</a>
+  <% } %>
+
+  <br>
+  <br>
+
+  <% if (isLoggedIn) { %> 
+    <a href="<%= homepageLink %>">Return home</a>
+<% } %>
 </body>
 </html>

@@ -30,11 +30,11 @@
     <input type="file" name="file" required>
     
     <!-- Pass the parentFolderID in a hidden input if present -->
-    <% if (locals.parentFolderID) { %>
+    <% if (locals.parentFolderID != null) { %>
       <input type="hidden" name="parentFolderID" value="<%= parentFolderID %>">
     <% } %>
     
-    <label for="inputPassword">Provide password (optional):</label>
+    <label for="password">Provide password (optional):</label>
     <input type="password" name="password">
     
     <!-- Checkbox for whitelist option -->

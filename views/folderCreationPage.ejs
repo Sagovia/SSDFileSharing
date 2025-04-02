@@ -9,8 +9,8 @@
     <h1>Create a New Folder</h1>
     
     <form action="/acc/createFolder" method="POST">
-        <label for="folderName">Folder Name:</label>
-        <input type="text" id="folderName" name="folderName" required>
+        <label for="name">Folder Name:</label>
+        <input type="text" id="name" name="name" required>
         <br><br>
 
         <label for="isPrivate">Private Folder?</label>
@@ -18,12 +18,20 @@
         <br><br>
 
         <div id="whitelistSection" style="display: none;">
-            <label for="whitelistView">View Whitelist (comma-separated usernames):</label>
-            <input type="text" id="whitelistView" name="whitelistView">
+            <label for="password">Provide folder password (optional):</label>
+            <input type="text" id="password" name="password">
             <br><br>
 
-            <label for="whitelistAdd">Edit Whitelist (comma-separated usernames):</label>
-            <input type="text" id="whitelistAdd" name="whitelistAdd">
+            <label for="viewWhitelistUsernames">View Whitelist (comma-separated usernames):</label>
+            <input type="text" id="viewWhitelistUsernames" name="viewWhitelistUsernames">
+            <br><br>
+
+            <label for="editWhitelistUsernames">Edit Whitelist (comma-separated usernames):</label>
+            <input type="text" id="editWhitelistUsernames" name="editWhitelistUsernames">
+            <br><br>
+
+            <label for="deleteWhitelistUsernames">Deletion Whitelist (comma-separated usernames):</label>
+            <input type="text" id="deleteWhitelistUsernames" name="deleteWhitelistUsernames">
             <br><br>
         </div>
 
