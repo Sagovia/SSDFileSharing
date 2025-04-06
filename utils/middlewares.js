@@ -78,7 +78,8 @@ const checkFolderOwnership = (request, response, next) => {
 
 // Check Whitelist Access for file
 // Input: Expects request.file and request.user
-// Output: .passesFileViewWhitelist attached to request (Will be true if no password and on whitelist, or no whitelist, but false if not on whitelist or there's password protection)
+// Output: .passesFileViewWhitelist attached to request 
+// (Will be true if no password and on whitelist, or no whitelist, but false if not on whitelist or there's password protection)
 const checkWhitelist = (request, response, next) => {
     console.log("Inside middleware checkWhitelist");
     const file = request.file;
@@ -151,7 +152,7 @@ const checkFolderWhitelist = (request, response, next) => {
 };
 
 // Check Password Access for file
-// Input: Expects use of validation for password beforehand, request.file.password
+// Input: Expects use of validation for password, request.file.password
 // Output: request.correctFilePassword
 const checkPasswordForFile = (req, res, next) => {
     const passwordErrors = validationResult(req);
@@ -169,7 +170,7 @@ const checkPasswordForFile = (req, res, next) => {
             return next();
             // return res.render("password", { msg: "Enter password to access this file" });
         }
-        if (!bcrypt.compareSync(data.password, req.file.password)) { // If wrong password
+        if (bcrypt.compareSync(data.password, req.file.password)) { // If correct password
             req.correctFilePassword = true;
             return next();
             // return res.render("password", { msg: "Incorrect password. Try again" });
@@ -184,14 +185,14 @@ const checkPasswordForFile = (req, res, next) => {
 // Output: request.correctFolderPassword
 const checkPasswordForFolder = (request, result, next) => {
     const passwordErrors = validationResult(request).array().filter(error => error.param === "password");
-    const data = matchedData(request);
+    const data = matchedData(request); // Validate data
 
     console.log(passwordErrors);
-    if(passwordErrors.length > 0) {
+    if(passwordErrors.length > 0) { // Errors in password, return false
         request.correctFolderPassword = false;
         return next();
     }
-    if(request.folder == null) {
+    if(request.folder == null) { // No folder 
         request.correctFolderPassword = false;
         return next();
     }

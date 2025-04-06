@@ -832,9 +832,10 @@ app.post("/acc/folder/delete/:id",
 );
 
 
+// TODO: Still need to implement a permissions editing system
 app.get("/acc/file/edit",
     (request, response) => {
-        
+
     }
 )
 
