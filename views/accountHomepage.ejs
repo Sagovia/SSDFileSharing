@@ -1,43 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account Home</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Home - SSDFileSharing</title>
+  <style>
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f9fc;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    a {
+      text-decoration: none;
+      color: #005f99;
+    }
+    /* Header */
+    .header {
+      background: #005f99;
+      color: #fff;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+    /* Upload Button */
+    .upload-button {
+      margin: 2rem auto;
+      padding: 1rem 2rem;
+      background: #007bb5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      transition: background 0.3s ease;
+    }
+    .upload-button:hover {
+      background: #005f99;
+    }
+    /* Main Sections */
+    .sections {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      padding: 0 2rem;
+    }
+    .section {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #005f99;
+    }
+    /* Boxes for Files and Folders */
+    .box-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .box {
+      background: #eaf3fa;
+      border: 1px solid #d1e7f2;
+      border-radius: 4px;
+      padding: 1rem;
+      flex: 1 1 calc(33.33% - 1rem);
+      min-width: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .box h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.2rem;
+      color: #003d66;
+    }
+    .box .actions {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #005f99;
+    }
+    .box .actions a {
+      margin-right: 0.5rem;
+    }
+    .box form {
+      display: inline;
+    }
+    /* Create Folder Button */
+    .create-folder-button {
+      display: inline-block;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: #007bb5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.3s ease;
+    }
+    .create-folder-button:hover {
+      background: #005f99;
+    }
+    /* Footer */
+    footer {
+      background: #005f99;
+      color: #fff;
+      padding: 1rem 2rem;
+      text-align: right;
+      font-size: 0.9rem;
+    }
+  </style>
 </head>
 <body>
+  <!-- Header -->
+  <header class="header">
     <h1>Welcome, <%= username %>!</h1>
+  </header>
 
-    <a href="<%= uploadLink %>"  rel="noopener noreferrer">Upload a file</a>
-    
-    <h2>Your Uploaded Files</h2>
-    <ul>
+  <!-- Upload File Button -->
+  <div class="upload-button" onclick="window.location.href='<%= uploadLink %>'">
+    Upload a file
+  </div>
+
+  <!-- Main Sections -->
+  <div class="sections">
+    <!-- Files Section -->
+    <div class="section">
+      <h2>Your Uploaded Files</h2>
+      <div class="box-container">
         <% fileNames.forEach((fileName, index) => { %>
-            <li>
-                <%= fileName %>: 
-                <a href="<%= fileDetailLinks[index] %>" rel="noopener noreferrer">View Details</a>,
-                <!-- Secure Delete Button using POST request -->
-                <form action="<%= fileDeletionLinks[index] %>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this file?');">
-                    <button type="submit">Delete File</button>
-                </form>
-            </li>
+          <div class="box">
+            <h3><%= fileName %></h3>
+            <div class="actions">
+              <a href="<%= fileDetailLinks[index] %>" rel="noopener noreferrer">View Details</a>
+              <a href="<%= filePermissionLinks[index] %>" rel="noopener noreferrer">Permissions</a>
+              <form action="<%= fileDeletionLinks[index] %>" method="POST" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                <button type="submit">Delete File</button>
+              </form>
+            </div>
+          </div>
         <% }); %>
-    </ul>
+      </div>
+    </div>
 
-    <h2>Your Folders</h2>
-    <!-- TODO: Update this so that it works for folders -->
-    <a href="<%= createFolderLink %>"  rel="noopener noreferrer">Create a new folder</a>
-    <ul>
+    <!-- Folders Section -->
+    <div class="section">
+      <h2>Your Folders</h2>
+      <div>
+        <a href="<%= createFolderLink %>" class="create-folder-button" rel="noopener noreferrer">Create a new folder</a>
+      </div>
+      <div class="box-container">
         <% folderNames.forEach((folderName, index) => { %>
-            <li>
-                <%= folderName %>: 
-                <a href="<%= viewFolderLinks[index] %>" rel="noopener noreferrer">Open folder</a>,
-                <!-- Secure Delete Button using POST request -->
-                <form action="<%= folderDeletionLinks[index] %>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this folder?');">
-                    <button type="submit">Delete Folder</button>
-                </form>
-            </li>
+          <div class="box">
+            <h3><%= folderName %></h3>
+            <div class="actions">
+              <a href="<%= viewFolderLinks[index] %>" rel="noopener noreferrer">Open Folder</a>
+              <a href="<%= folderPermissionLinks[index] %>" rel="noopener noreferrer">Permissions</a>
+              <form action="<%= folderDeletionLinks[index] %>" method="POST" onsubmit="return confirm('Are you sure you want to delete this folder?');">
+                <button type="submit">Delete Folder</button>
+              </form>
+            </div>
+          </div>
         <% }); %>
-    </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    Uploading files since 2025
+  </footer>
 </body>
 </html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSDFileSharing</title>
+  <style>
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f9fc;
+      color: #333;
+    }
+    a {
+      text-decoration: none;
+      color: #fff;
+    }
+    /* Top Navigation Bar */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #005f99;
+      padding: 1rem 2rem;
+      color: #fff;
+    }
+    .topbar .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .topbar .nav-links a {
+      margin-left: 1.5rem;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .topbar .nav-links a:hover {
+      color: #d1e7f2;
+    }
+    /* Upload Box Section */
+    .upload-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 3rem 0;
+    }
+    .upload-box {
+      background: #fff;
+      border-radius: 50%;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .upload-box:hover {
+      transform: scale(1.05);
+    }
+    .upload-box i {
+      font-size: 4rem;
+      color: #005f99;
+    }
+    .upload-box span {
+      margin-top: 0.5rem;
+      font-size: 1.2rem;
+      color: #005f99;
+      font-weight: bold;
+    }
+    /* Main Content Section */
+    .main-content {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 2rem;
+      background: #eaf3fa;
+      margin: 2rem;
+      border-radius: 8px;
+    }
+    .main-content .text {
+      max-width: 500px;
+      font-size: 1.2rem;
+      color: #003d66;
+    }
+    .main-content .image {
+      max-width: 400px;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    /* Features Section */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      padding: 2rem;
+      margin: 2rem;
+    }
+    .feature {
+      background: #fff;
+      border-radius: 8px;
+      width: 300px;
+      margin: 1rem;
+      display: flex;
+      flex-direction: row;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .feature .feature-img {
+      width: 100px;
+      height: 100px;
+      border-top-left-radius: 8px;
+      border-bottom-left-radius: 8px;
+      background: #005f99;
+      background-size: cover;
+      background-position: center;
+    }
+    .feature .feature-text {
+      padding: 1rem;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      font-size: 1.2rem;
+      color: #003d66;
+      font-weight: bold;
+    }
+    /* Footer */
+    footer {
+      background: #005f99;
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: flex-end;
+      font-size: 0.9rem;
+    }
+  </style>
+  <!-- You can include an icon library like FontAwesome if desired -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnH/PRDZHnR1D5fALRX6J56e7n5n5jZ1Nw8wBf5g1FQ4NTIyYkMv+6I9h0fXhYISxsmZn/3Cg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="topbar">
+    <div class="logo">PLACEHOLDER NAME</div>
+    <nav class="nav-links">
+      <a href="<%= loginLink %>">Login</a>
+      <a href="<%= registerLink %>">Register</a>
+    </nav>
+  </header>
+
+  <!-- Upload Box Section -->
+  <section class="upload-section">
+    <div class="upload-box" onclick="window.location.href='<%= folderUploadLink %>'">
+      <i class="fas fa-cloud-upload-alt"></i>
+      <span>Upload a file</span>
+    </div>
+  </section>
+
+  <!-- Main Content Section -->
+  <section class="main-content">
+    <div class="text">
+      <h1>A Secure, Collaborative File Sharing Solution</h1>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse interdum, mi nec blandit imperdiet, nibh dui cursus massa, nec congue libero leo eget justo.</p>
+    </div>
+    <div class="image">
+      <img src="https://via.placeholder.com/400" alt="Placeholder Image" style="width: 100%; border-radius: 8px;">
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="feature">
+      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-text">Upload files securely</div>
+    </div>
+    <div class="feature">
+      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-text">Manage collaborative folders</div>
+    </div>
+    <div class="feature">
+      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-text">Manage access controls</div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div>Uploading files since 2025</div>
+  </footer>
+</body>
+</html>

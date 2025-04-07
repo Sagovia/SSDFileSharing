@@ -30,7 +30,7 @@ const folderValidationScema = require("../validationSchemas/folderValidationSche
 
 
 // Import helper functions
-const {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder} = require('../utils/helpers.js'); 
+const {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder, renderFilePermissions, parseAndValidateList, modifyFilePermissions, modifyFilePassword, renderFolderPermissions, modifyFolderPassword, modifyFolderPermissions} = require('../utils/helpers.js'); 
 
 
 // TODO: Login session expires even if in use, want it to last longer
@@ -40,7 +40,6 @@ mongoose
     .connect("mongodb://localhost/fileDatabase")
     .then(() => console.log('Connected to database'))
     .catch((err) => console.log(`Error: ${err}`));
-
 
 // Constants
 const PORT = 3000;
@@ -61,7 +60,7 @@ app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep 
     saveUninitialized: false,
     resave: false,
     cookie: {
-        maxAge: 60000 * 60 // Session cookies expire after 1 hour TODO: Maybe make longer?
+        maxAge: 60000 * 60 * 24 * 7 // Session cookies expire after 1 week TODO: Maybe make longer?
     },
     store: MongoStore.create({ // For creating the persistent session store
         client: mongoose.connection.getClient()
@@ -71,14 +70,16 @@ app.use(passport.initialize());
 app.use(passport.session()); //
 
 
-
-
 // Pages
 app.get("/", // Home page
     (request, response) => {
         // Will look for view template called index, usually in folder "views"
         // By default, it will be sent to upload screen, let's change
-        response.render("home");  // TODO: add basic home screen, with login/register button
+        const folderUploadLink = `${request.protocol}://${request.get('host')}/upload`;
+        const loginLink = `${request.protocol}://${request.get('host')}/login`;
+        const registerLink = `${request.protocol}://${request.get('host')}/register`;
+        response.render("home", {folderUploadLink, loginLink, registerLink});  // TODO: add basic home screen, with login/register button
+
     }
 )
 
@@ -109,6 +110,7 @@ app.post("/register",
     checkSchema(userValidationSchema), // Validation for user register info
     async (request, response) => {
         console.log("Inside POST /register");
+        
 
         const validationErrors = validationResult(request);
         if(!validationErrors.isEmpty()) { // Errors in input
@@ -142,7 +144,7 @@ app.get("/register",
             response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc/home
         }
         else {
-            response.render("registerPage"); // Display register page
+            response.render("registerPage" /*CSRF*/); // Display register page
         }
     }
 )
@@ -158,10 +160,10 @@ app.post("/login",
         if(request.user == null) { // If login not successful
             // Return back to /index, and send the link to the file back:
             // TODO: Make error message more specific, can do via passing message object in done() in strategy definition
-            response.render("loginPage", {msg : `Invalid credentials, please try again.`});
+            response.render("loginPage", /*CSRF*/ {msg : `Invalid credentials, please try again.`});
         }
 
-        response.redirect("/acc/home"); 
+        response.redirect("/acc/home");
     }
 )
 
@@ -172,7 +174,7 @@ app.get("/login",
             return response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc
         }
         else {
-            return response.render("loginPage"); // Display register page
+            return response.render("loginPage" /*CSRF*/); // Display register page
         }
     }
 )
@@ -207,7 +209,6 @@ app.post("/upload",
     verifyPrivateWhitelist, // Checks given whitelist, adds .viewWhitelist to request if everything's valid
     async (request, response) => {
         console.log("Inside POST /upload");
-
         // upload.single("file")
         const inputFile = {
             // Use multer's file added to request for this
@@ -258,7 +259,7 @@ app.post("/upload",
         console.log(newFile);
 
         // Return back to /index, and send the link to the file back:
-        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`});
+        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`}, );
 })
 
 
@@ -269,10 +270,10 @@ app.get("/upload",
             const parentFolderID = request.query.parentFolderID;
             console.log("Testing11");
             console.log(parentFolderID);
-            return response.render("index", {parentFolderID});
+            return response.render("index", {parentFolderID: parentFolderID, /*CSRF*/});
         }
         // Otherwise not needed
-        return response.render("index");
+        return response.render("index", { /*CSRF*/});
     }
 )
 
@@ -509,6 +510,8 @@ app.post("/file/:id",
     checkPasswordForFile, // Adds request.correctFilePassword
     async (request, response) => {
         console.log("Inside POST /file/:id");
+
+        console.log(request.correctFilePassword);
 
         const requestedFile = request.file;
 
@@ -785,12 +788,14 @@ app.post("/acc/createFolder",
 
 
         if(isPrivate) {
-            const password = hashPassword(data.password);
             const viewWhitelist = request.viewWhitelist;
             const editWhitelist = request.editWhitelist;
             const deleteWhitelist = request.deleteWhitelist;
 
-            fileData.password = password;
+            if(data.password) {
+                const password = hashPassword(data.password);
+                fileData.password = password;
+            }
             fileData.viewWhitelist = viewWhitelist;
             fileData.editWhitelist = editWhitelist;
             fileData.deleteWhitelist = deleteWhitelist;
@@ -832,14 +837,142 @@ app.post("/acc/folder/delete/:id",
 );
 
 
-// TODO: Still need to implement a permissions editing system
-app.get("/acc/file/edit",
-    (request, response) => {
+// Output: Page displaying: Current users in various whitelists, isPrivate status, 
+app.get("/file/permissions/:id",
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderOwnership, // Adds request.isFolderOwner
+    async (request, response) => {
+        if(!request.user) { // User not logged in
+            response.redirect("/login");
+        }
 
+
+        if(request.folder) { // If file attempting to modify permissions for is in folder
+            if(!request.isFolderOwner) {
+                response.send("Cannot modify permissions for files inside folder you don't own.");
+            }
+            return await renderFilePermissions(request, response, request.file);
+        }
+
+        // Now check if user owns file
+        if(request.isFileOwner) {
+            return await renderFilePermissions(request, response, request.file);
+        }
+        response.send("Cannot modify permissions for files you don't own.");
+    }
+);
+
+
+
+
+// Input: isPrivate (IE nullify viewWhitelist for file), file ID, password (To replace old one), addWhitelist, removeWhitelist (To modify file.viewWhitelist)
+app.post("/file/permissions/:id",
+    validateFile, // attach request.file if exists, returns err if otherwise
+    checkOwnership, // attach request.isFileOwner
+    resolveFiletoParentFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
+    checkFolderOwnership, // Adds request.isFolderOwner
+    async (request, response) => {
+        console.log("Inside POST /file/permissions");
+        if(!request.user) { // User not logged in
+            response.redirect("/login");
+        }
+
+        const addWhitelist = await parseAndValidateList(response, request.body.addWhitelist);
+        const removeWhitelist = await parseAndValidateList(response, request.body.removeWhitelist);
+        const isPrivate = request.body.isPrivate === "true";
+        const newPassword = request.body.password;
+
+
+        if(request.folder) { // If file attempting to modify permissions for is in folder
+            if(!request.isFolderOwner) {
+                return response.send("Cannot modify permissions for files inside folder you don't own.");
+            }
+            await modifyFilePermissions(isPrivate, request.file, addWhitelist, removeWhitelist);
+            if(newPassword) {
+                await modifyFilePassword(request.file, newPassword);
+            }
+            return await renderFilePermissions(request, response, request.file);
+        }
+
+        // Now check if user owns file
+        if(request.isFileOwner) {
+            await modifyFilePermissions(isPrivate, request.file, addWhitelist, removeWhitelist);
+            if(newPassword) {
+                await modifyFilePassword(request.file, newPassword);
+            }
+            return await renderFilePermissions(request, response, request.file);
+        }
+        return response.send("Cannot modify permissions for files you don't own.");
+    }
+);
+
+
+// Input: request.user, folder ID
+// Output: Will display permissions modification page if user logged in and folder ID is valid and they own its valid
+app.get("/folder/permissions/:id",
+    validateFolder, // Adds request.folder if folder request is valid
+    checkFolderOwnership, // Adds .isFolderOwner to request
+    async (request, response) => {
+        if(!request.user) { // User not logged in
+            response.redirect("/login");
+        }
+
+        if(request.isFolderOwner) {
+            return await renderFolderPermissions(request, response, request.folder);
+        }
+        else {
+            response.send("Cannot modify folder permissions for folder you don't own.")
+        }
     }
 )
 
 
+// Input: isPrivate, editWhitelistAdd editWhitelistRemove, viewWhitelistAdd viewWhitelistRemove, deleteWhitelistAdd deleteWhitelistRemove, password
+// Output: If the user owns the folder, the permsisions will be modified
+app.post("/folder/permissions/:id",
+    validateFolder, // Adds request.folder if folder request is valid
+    checkFolderOwnership, // Adds .isFolderOwner to request
+    async (request, response) => {
+        console.log("Inside POST /file/permissions");
+        if(!request.user) { // User not logged in
+            return response.redirect("/login");
+        }
+        if(!request.isFolderOwner) {
+            return response.send("Cannot modify folder permissions for folder you don't own.")
+        }
+
+        const viewWhitelistAdd = await parseAndValidateList(response, request.body.viewWhitelistAdd);
+        const viewWhitelistRemove = await parseAndValidateList(response, request.body.viewWhitelistRemove);
+        console.log(viewWhitelistAdd, viewWhitelistRemove);
+
+        const editWhitelistAdd = await parseAndValidateList(response, request.body.editWhitelistAdd);
+        const editWhitelistRemove = await parseAndValidateList(response, request.body.editWhitelistRemove);
+        console.log(editWhitelistAdd, editWhitelistRemove);
+
+        const deleteWhitelistAdd = await parseAndValidateList(response, request.body.deleteWhitelistAdd);
+        const deleteWhitelistRemove = await parseAndValidateList(response, request.body.deleteWhitelistRemove);
+        console.log(deleteWhitelistAdd, deleteWhitelistRemove);
+        
+
+
+        const isPrivate = request.body.isPrivate === "true";
+        console.log(request.body.isPrivate);
+        const newPassword = request.body.password;
+
+
+        if(!request.isFolderOwner) {
+            return response.send("Cannot modify permissions for folder you don't own.");
+        }
+
+        await modifyFolderPermissions(isPrivate, request.folder, viewWhitelistAdd, viewWhitelistRemove, editWhitelistAdd, editWhitelistRemove, deleteWhitelistAdd, deleteWhitelistRemove);
+        if(newPassword) {
+            await modifyFolderPassword(request.folder, newPassword);
+        }
+        return await renderFolderPermissions(request, response, request.folder);
+    }
+)
 
 
 
@@ -854,4 +987,7 @@ app.listen(PORT, () => {
     // Here you can have something occur when the server starts up
     console.log(`Running on 3000`)
 }); 
+
+
+module.exports = app;
 

@@ -107,12 +107,19 @@ const renderHomepage = async (request, response) => {
     const viewFolderLinks = folders.map((curFolder) => 
         `${request.protocol}://${request.get('host')}/acc/folder/${curFolder.id}`
         );
+    
+    const folderPermissionLinks = folders.map((curFolder) => 
+        `${request.protocol}://${request.get('host')}/folder/permissions/${curFolder.id}`
+        );
 
 
 
     // Generate list of links to delete file (format http://localhost:3000/file/delete/[file id])
     const fileDeletionLinks = files.map((curFile) => 
         `${request.protocol}://${request.get('host')}/file/delete/${curFile.id}`
+        );
+    const filePermissionLinks = files.map((curFile) => 
+        `${request.protocol}://${request.get('host')}/file/permissions/${curFile.id}`
         );
     
     const folderDeletionLinks = folders.map((curFolder) => 
@@ -129,7 +136,242 @@ const renderHomepage = async (request, response) => {
 
 
     // Render homepage
-    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks, uploadLink, createFolderLink, viewFolderLinks, folderNames, folderDeletionLinks});
+    response.render("accountHomepage", {fileNames, username, fileDetailLinks, fileDeletionLinks, uploadLink, createFolderLink, viewFolderLinks, folderNames, folderDeletionLinks, folderPermissionLinks, filePermissionLinks});
 }
 
-module.exports = {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder};
+
+
+const renderFilePermissions = async (request, response, file) => {
+    console.log("Inside helper function renderFilePermissions");
+    const fileName = file.name;
+    const isPrivate = file.viewWhitelist != null;
+    const viewWhitelist = file.viewWhitelist;
+    const linkToPost = `${request.protocol}://${request.get('host')}/file/permissions/${file.id}`;
+    let usersOnViewWhitelist;
+
+    if(viewWhitelist) {
+        usersOnViewWhitelist = await Promise.all( // Get whitelist usernames
+            viewWhitelist.map(async (userID) => {
+              const user = await User.findById(userID);
+              return user.username;
+            })
+          );
+    }
+    
+    console.log(usersOnViewWhitelist)
+    response.render("filePermissions", {isPrivate, usersOnViewWhitelist, fileName, linkToPost})
+}
+
+
+// Input: isPrivate, editWhitelistAdd editWhitelistRemove, viewWhitelistAdd viewWhitelistRemove, deleteWhitelistAdd deleteWhitelistRemove
+const renderFolderPermissions = async (request, response, folder) => {
+    console.log("Inside helper function renderFolderPermissions");
+
+    const folderName = folder.name;
+    const isPrivate = folder.viewWhitelist != null;
+    const viewWhitelist = folder.viewWhitelist;
+    const editWhitelist = folder.editWhitelist;
+    const deleteWhitelist = folder.deleteWhitelist;
+
+    const linkToPost = `${request.protocol}://${request.get('host')}/folder/permissions/${folder.id}`;
+    let usersOnViewWhitelist;
+    let usersOnEditWhitelist;
+    let usersOnDeleteWhitelist;
+
+    if(viewWhitelist) {
+        usersOnViewWhitelist = await Promise.all( // Get whitelist usernames
+            viewWhitelist.map(async (userID) => {
+              const user = await User.findById(userID);
+              return user.username;
+            })
+          );
+    }
+
+    if(editWhitelist) {
+        usersOnEditWhitelist = await Promise.all( // Get whitelist usernames
+            editWhitelist.map(async (userID) => {
+              const user = await User.findById(userID);
+              return user.username;
+            })
+          );
+    }
+
+    if(deleteWhitelist) {
+        usersOnDeleteWhitelist = await Promise.all( // Get whitelist usernames
+            deleteWhitelist.map(async (userID) => {
+              const user = await User.findById(userID);
+              return user.username;
+            })
+          );
+    }
+
+    response.render("folderPermissions", {isPrivate, usersOnViewWhitelist, usersOnEditWhitelist, usersOnDeleteWhitelist, folderName, linkToPost})
+}
+
+
+// Input: A list, which should be a string of space-separated usernames
+// Output: An array of users corresponding to the usernames, will send out 400 if bad usernames given
+const parseAndValidateList = async (response, list) => {
+    console.log("Inside helper function parseAndValidateList");
+    // Parse the usernames from the request body (if provided)
+    if(!list) {
+        return [];
+    }
+
+    const newList = list
+    ? list.trim().split(/\s+/)
+    : [];
+
+    // Validate view whitelist: lookup each username and return user ID or null
+    const users = await Promise.all(
+        newList.map(async (username) => {
+            const user = await User.findOne({ username });
+            return user ? user._id : null;
+        })
+    );
+    if (users.includes(null)) {
+        return response.status(400).send("One or more usernames are invalid");
+    }
+
+    return users;
+
+}
+
+
+/*
+
+const modifyFilePermissions = async (isPrivate, file, addWhitelist, removeWhitelist) => {
+    if(!isPrivate) { // File is public
+        file.isPrivate = false;
+        file.viewWhitelist = null;
+    }
+    else {
+
+        console.log(addWhitelist);
+        console.log(file.viewWhitelist);
+        file.viewWhitelist = [...new Set([...(file.viewWhitelist || []), ...addWhitelist])];
+        file.viewWhitelist = file.viewWhitelist.filter(item => !removeWhitelist.includes(item));
+        
+    }
+
+    await file.save();
+
+}
+    */
+
+
+const modifyFilePermissions = async (isPrivate, file, addWhitelist, removeWhitelist) => {
+    if (!isPrivate) { // File is public
+      file.isPrivate = false;
+      file.viewWhitelist = null;
+    } else {
+      // Convert the existing whitelist and the ones to add/remove into arrays of strings.
+      const currentWhitelistStr = (file.viewWhitelist || []).map(item => item.toString());
+      const addWhitelistStr = addWhitelist.map(item => item.toString ? item.toString() : item);
+      const removeWhitelistStr = removeWhitelist.map(item => item.toString ? item.toString() : item);
+  
+      // Combine the current whitelist with the ones to add
+      const combined = [...currentWhitelistStr, ...addWhitelistStr];
+      // Deduplicate by converting to a Set and back to an array
+      const deduped = [...new Set(combined)];
+      // Remove any items that are in the removeWhitelist
+      const finalWhitelistStr = deduped.filter(id => !removeWhitelistStr.includes(id));
+  
+      // If you want to store ObjectIDs, convert them back:
+      file.viewWhitelist = finalWhitelistStr.map(id => new mongoose.Types.ObjectId(id));
+      file.isPrivate = true;
+    }
+  
+    await file.save();
+  };
+
+  /*
+const modifyFolderPermissions = async (isPrivate, folder, viewWhitelistAdd, viewWhitelistRemove, editWhitelistAdd, editWhitelistRemove, deleteWhitelistAdd, deleteWhitelistRemove) => {
+    console.log("Inside helper function modifyFolderPermissions");
+    if(!isPrivate) { // File is public
+        folder.isPrivate = false;
+        folder.viewWhitelist = null;
+        folder.editWhitelist = null;
+        folder.deleteWhitelist = null;
+    }
+    else {
+        folder.viewWhitelist = [...new Set([...(folder.viewWhitelist || []), ...viewWhitelistAdd])];
+        folder.viewWhitelist = folder.viewWhitelist.filter(item => !viewWhitelistRemove.includes(item));
+        console.log(folder.viewWhitelist);
+        console.log(viewWhitelistRemove);
+
+        folder.editWhitelist = [...new Set([...(folder.editWhitelist || []), ...editWhitelistAdd])];
+        folder.editWhitelist = folder.editWhitelist.filter(item => !editWhitelistRemove.includes(item));
+
+        folder.deleteWhitelist = [...new Set([...(folder.deleteWhitelist || []), ...deleteWhitelistAdd])];
+        folder.deleteWhitelist = folder.deleteWhitelist.filter(item => !deleteWhitelistRemove.includes(item));
+    }
+
+    await folder.save();
+
+}
+*/
+
+const modifyFolderPermissions = async (isPrivate, folder, viewWhitelistAdd, viewWhitelistRemove, editWhitelistAdd, editWhitelistRemove, deleteWhitelistAdd, deleteWhitelistRemove) => {
+    console.log("Inside helper function modifyFolderPermissions");
+
+    if (!isPrivate) { 
+        folder.isPrivate = false;
+        folder.viewWhitelist = null;
+        folder.editWhitelist = null;
+        folder.deleteWhitelist = null;
+    } else {
+        // Process viewWhitelist:
+        const currentView = (folder.viewWhitelist || []).map(id => id.toString());
+        const viewAddStr = viewWhitelistAdd.map(item => item.toString());
+        const viewRemoveStr = viewWhitelistRemove.map(item => item.toString());
+        const viewCombined = [...new Set([...currentView, ...viewAddStr])];
+        const finalView = viewCombined.filter(id => !viewRemoveStr.includes(id));
+        folder.viewWhitelist = finalView.map(id => new mongoose.Types.ObjectId(id));
+
+        // Process editWhitelist:
+        const currentEdit = (folder.editWhitelist || []).map(id => id.toString());
+        const editAddStr = editWhitelistAdd.map(item => item.toString());
+        const editRemoveStr = editWhitelistRemove.map(item => item.toString());
+        const editCombined = [...new Set([...currentEdit, ...editAddStr])];
+        const finalEdit = editCombined.filter(id => !editRemoveStr.includes(id));
+        folder.editWhitelist = finalEdit.map(id => new mongoose.Types.ObjectId(id));
+
+        // Process deleteWhitelist:
+        const currentDelete = (folder.deleteWhitelist || []).map(id => id.toString());
+        const deleteAddStr = deleteWhitelistAdd.map(item => item.toString());
+        const deleteRemoveStr = deleteWhitelistRemove.map(item => item.toString());
+        const deleteCombined = [...new Set([...currentDelete, ...deleteAddStr])];
+        const finalDelete = deleteCombined.filter(id => !deleteRemoveStr.includes(id));
+        folder.deleteWhitelist = finalDelete.map(id => new mongoose.Types.ObjectId(id));
+
+        folder.isPrivate = true;
+    }
+    await folder.save();
+}
+
+
+
+
+
+
+
+// Input: newPassword (prevalidated)
+// Output: file.password will be modified
+const modifyFilePassword = async (file, newPassword) => {
+    newPassword = hashPassword(newPassword);
+    file.password = newPassword;
+    await file.save();
+}
+
+// Input: newPassword (prevalidated)
+// Output: folder.password will be modified
+const modifyFolderPassword = async (folder, newPassword) => {
+    newPassword = hashPassword(newPassword);
+    folder.password = newPassword;
+    await folder.save();
+}
+
+
+
+module.exports = {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder, renderFilePermissions, parseAndValidateList, modifyFilePermissions, modifyFilePassword, renderFolderPermissions, modifyFolderPassword, modifyFolderPermissions};

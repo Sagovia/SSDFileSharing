@@ -155,10 +155,13 @@ const checkFolderWhitelist = (request, response, next) => {
 // Input: Expects use of validation for password, request.file.password
 // Output: request.correctFilePassword
 const checkPasswordForFile = (req, res, next) => {
-    const passwordErrors = validationResult(req);
+    console.log("Inside middleware checkPasswordForFile");
+    const passwordErrors = validationResult(req).array().filter(err => err.param === "password");
     const data = matchedData(req);
 
-    if(!passwordErrors.isEmpty()) {
+    console.log(passwordErrors);
+
+    if(passwordErrors.length > 0) {
         req.correctFilePassword = false;
         return next();
         // return res.render("password", { msg: "Invalid password entered. Try again." });
@@ -264,10 +267,7 @@ const verifyPrivateWhitelist = async (request, response, next) => {
     // Only process if the file/folder is set to be private
     if (data.isPrivate) { 
         try {
-            // If trying to use a custom whitelist for a folder, that's not allowed
-            if (request.folder) { 
-                return response.status(400).send("Folder whitelist takes precedence");
-            }
+            
 
             // Parse the usernames from the request body (if provided)
             const viewUsernames = request.body.viewWhitelistUsernames
@@ -335,6 +335,8 @@ const verifyPrivateWhitelist = async (request, response, next) => {
     }
     next();
 };
+
+
 
 
 

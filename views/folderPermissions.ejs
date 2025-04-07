@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folder Permissions - PLACEHOLDER NAME</title>
+  <style>
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f9fc;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    a {
+      text-decoration: none;
+      color: #005f99;
+    }
+    /* Header */
+    header {
+      background: #005f99;
+      color: #fff;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    /* Main Container */
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    /* Card Style */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card h2 {
+      margin: 0 0 1rem 0;
+      color: #005f99;
+      font-size: 1.6rem;
+    }
+    .info {
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+      color: #003d66;
+    }
+    .info p {
+      margin: 0.5rem 0;
+    }
+    /* Form Styles */
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    form label {
+      margin-top: 1rem;
+      font-weight: bold;
+      color: #003d66;
+    }
+    form input[type="text"],
+    form input[type="password"] {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    form input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    form button {
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #005f99;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    form button:hover {
+      background-color: #004e80;
+    }
+    /* Footer */
+    footer {
+      background: #005f99;
+      color: #fff;
+      padding: 1rem 2rem;
+      text-align: right;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <h1>Folder Permissions</h1>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+    <div class="card">
+      <!-- Display current folder details -->
+      <h2><%= folderName %></h2>
+      <div class="info">
+        <p><strong>Is Private?</strong> <%= isPrivate ? "Yes" : "No" %></p>
+        <p><strong>Current users on view whitelist:</strong>
+          <% if (usersOnViewWhitelist && usersOnViewWhitelist.length > 0) { %>
+            <%= usersOnViewWhitelist.join(", ") %>
+          <% } else { %>
+            None
+          <% } %>
+        </p>
+        <p><strong>Current users on edit whitelist:</strong>
+          <% if (usersOnEditWhitelist && usersOnEditWhitelist.length > 0) { %>
+            <%= usersOnEditWhitelist.join(", ") %>
+          <% } else { %>
+            None
+          <% } %>
+        </p>
+        <p><strong>Current users on delete whitelist:</strong>
+          <% if (usersOnDeleteWhitelist && usersOnDeleteWhitelist.length > 0) { %>
+            <%= usersOnDeleteWhitelist.join(", ") %>
+          <% } else { %>
+            None
+          <% } %>
+        </p>
+      </div>
+
+      <!-- Update Permissions Form -->
+      <form action="<%= linkToPost %>" method="post">
+        <!-- Hidden fallback for isPrivate -->
+        <div>
+            <label for="isPrivate">Is Private?</label>
+            <input type="checkbox" id="isPrivate" name="isPrivate" value="true" <%= isPrivate ? "checked" : "" %>>
+          </div>
+
+        <!-- View Whitelist Inputs -->
+        <div>
+          <label for="viewWhitelistAdd">Add users to view whitelist (space-separated):</label> <br>
+          <input type="text" id="viewWhitelistAdd" name="viewWhitelistAdd">
+        </div>
+        <div>
+          <label for="viewWhitelistRemove">Remove users from view whitelist (space-separated):</label> <br>
+          <input type="text" id="viewWhitelistRemove" name="viewWhitelistRemove">
+        </div>
+
+        <!-- Edit Whitelist Inputs -->
+        <div>
+          <label for="editWhitelistAdd">Add users to edit whitelist (space-separated):</label> <br>
+          <input type="text" id="editWhitelistAdd" name="editWhitelistAdd">
+        </div>
+        <div>
+          <label for="editWhitelistRemove">Remove users from edit whitelist (space-separated):</label> <br>
+          <input type="text" id="editWhitelistRemove" name="editWhitelistRemove">
+        </div>
+
+        <!-- Delete Whitelist Inputs -->
+        <div>
+          <label for="deleteWhitelistAdd">Add users to delete whitelist (space-separated):</label> <br>
+          <input type="text" id="deleteWhitelistAdd" name="deleteWhitelistAdd">
+        </div>
+        <div>
+          <label for="deleteWhitelistRemove">Remove users from delete whitelist (space-separated):</label><br>
+          <input type="text" id="deleteWhitelistRemove" name="deleteWhitelistRemove">
+        </div>
+
+        <button type="submit">Update permissions</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    Uploading files since 2025
+  </footer>
+</body>
+</html>

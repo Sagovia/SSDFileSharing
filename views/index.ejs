@@ -3,56 +3,171 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload File</title>
+  <title>Upload File - PLACEHOLDER NAME</title>
   <style>
-    /* Hide elements with the "hidden" class */
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f9fc;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    a {
+      text-decoration: none;
+      color: #005f99;
+    }
+    /* Top Bar (if needed, can be reused as partial) */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #005f99;
+      padding: 1rem 2rem;
+      color: #fff;
+    }
+    .topbar .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .topbar .nav-links a {
+      margin-left: 1.5rem;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .topbar .nav-links a:hover {
+      color: #d1e7f2;
+    }
+    /* Main Container */
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    /* Card for the upload form */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card h1 {
+      text-align: center;
+      color: #005f99;
+      margin-bottom: 1.5rem;
+    }
+    .card .message {
+      background-color: #ffecec;
+      border: 1px solid #ff5c5c;
+      color: #ff5c5c;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      border-radius: 4px;
+    }
+    /* Form Styles */
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    form label {
+      font-weight: bold;
+      margin-top: 1rem;
+      color: #003d66;
+    }
+    form input {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    form button {
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #005f99;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    form button:hover {
+      background-color: #004e80;
+    }
+    /* Additional Styles for Upload Page */
+    .upload-header {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #003d66;
+    }
     .hidden { display: none; }
   </style>
+  <!-- Optional: FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnH/PRDZHnR1D5fALRX6J56e7n5n5jZ1Nw8wBf5g1FQ4NTIyYkMv+6I9h0fXhYISxsmZn/3Cg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
-  <!-- If a file link exists, show the success message -->
-  <% if (locals.fileLink) { %>
-    <div>
-      Your file has been uploaded:
-      <a href="<%= fileLink %>"><%= fileLink %></a>
-    </div>
-  <% } %>
-
-  <!-- If a parentFolderID was provided, display header text -->
-  <% if (locals.parentFolderID) { %>
-    <div>
-      <strong>Uploading to folder: <%= parentFolderID %></strong>
-    </div>
-  <% } %>
-
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <label for="inputFile">Provide file:</label>
-    <input type="file" name="file" required>
-    
-    <!-- Pass the parentFolderID in a hidden input if present -->
-    <% if (locals.parentFolderID != null) { %>
-      <input type="hidden" name="parentFolderID" value="<%= parentFolderID %>">
-    <% } %>
-    
-    <label for="password">Provide password (optional):</label>
-    <input type="password" name="password">
-    
-    <!-- Checkbox for whitelist option -->
-    <div>
-      <label for="whitelistCheckbox">Add whitelist?</label>
-      <input type="checkbox" id="whitelistCheckbox" name="isPrivate" value="true">
-      <!-- If checked, isPrivate will be true in the POST -->
-    </div>
-    
-    <!-- Whitelist usernames field, shown only if checkbox is checked -->
-    <div id="whitelistContainer" class="hidden">
-      <label for="viewWhitelistUsernames">Whitelist usernames (space-separated):</label>
-      <input type="text" id="viewWhitelistUsernames" name="viewWhitelistUsernames">
-    </div>
-    
-    <button type="submit">Submit</button>
-  </form>
   
+  <!-- Main Container -->
+  <div class="container">
+    <div class="card">
+      <!-- If a file link exists, show the success message -->
+      <% if (locals.fileLink) { %>
+        <div class="message">
+          Your file has been uploaded:
+          <a href="<%= locals.fileLink %>"><%= locals.fileLink %></a>
+        </div>
+      <% } %>
+
+
+      <!-- If a parentFolderID was provided, display header text -->
+      <% if (locals.parentFolderID) { %>
+        <div class="upload-header">
+          <strong>Uploading to folder: <%= locals.parentFolderID %></strong>
+        </div>
+      <% } %>
+
+      <form action="/upload" method="post" enctype="multipart/form-data">
+
+        <label for="inputFile">Provide file:</label>
+        <input type="file" name="file" required>
+
+        <!-- Pass the locals.parentFolderID in a hidden input if present -->
+        <% if (locals.parentFolderID != null) { %>
+          <input type="hidden" name="parentFolderID" value="<%= locals.parentFolderID %>">
+        <% } %>
+
+        <% if (locals.parentFolderID == null) { %>
+        <label for="password">Provide password (optional):</label>
+        <input type="password" name="password">
+
+        <!-- Checkbox for whitelist option -->
+        <input type="hidden" name="isPrivate" value="false">
+        <div>
+          <label for="whitelistCheckbox">Add whitelist?</label>
+          <input type="checkbox" id="whitelistCheckbox" name="isPrivate" value="true">
+        </div>
+
+        <!-- Whitelist usernames field, shown only if checkbox is checked -->
+        <div id="whitelistContainer" class="hidden">
+          <label for="viewWhitelistUsernames">Whitelist usernames (space-separated):</label>
+          <input type="text" id="viewWhitelistUsernames" name="viewWhitelistUsernames">
+        </div>
+        <% } %>
+
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
   <script>
     // Toggle visibility of the whitelist field based on the checkbox
     const whitelistCheckbox = document.getElementById("whitelistCheckbox");
@@ -68,6 +183,3 @@
   </script>
 </body>
 </html>
-
-
-

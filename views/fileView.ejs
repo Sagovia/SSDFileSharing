@@ -1,22 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Details - PLACEHOLDER NAME</title>
+  <style>
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f9fc;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    a {
+      text-decoration: none;
+      color: #005f99;
+    }
+    /* Header */
+    .header {
+      background: #005f99;
+      color: #fff;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    /* Main Container */
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    /* Card Style for Details */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card h2 {
+      margin-top: 0;
+      color: #005f99;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    ul li {
+      margin-bottom: 0.5rem;
+      font-size: 1.1rem;
+    }
+    .link-button {
+      background: #007bb5;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      display: inline-block;
+    }
+    .link-button:hover {
+      background: #005f99;
+    }
+    /* Footer */
+    footer {
+      background: #005f99;
+      color: #fff;
+      padding: 1rem 2rem;
+      text-align: right;
+      font-size: 0.9rem;
+    }
+  </style>
 </head>
 <body>
-    <div>
-        File details:
-    </div>
-    <ul>
-        <li>Download link: <a href="<%= locals.fileLink %>"><%= locals.fileLink %> </a></li>
-        <li>File name: <%= locals.fileName %></li>
-        <li>Download count: <%= locals.downloadCount %></li>
-    </ul>
+  <!-- Header -->
+  <header class="header">
+    <h1>File Details</h1>
+  </header>
 
-    <div>
-        <a href="/acc/home"> Return home</a>
+  <!-- Main Container -->
+  <div class="container">
+    <div class="card">
+      <ul>
+        <li><strong>Download link:</strong> <a href="<%= fileLink %>" target="_blank" rel="noopener noreferrer"><%= fileLink %></a></li>
+        <li><strong>File name:</strong> <%= fileName %></li>
+        <li><strong>Download count:</strong> <%= downloadCount %></li>
+      </ul>
     </div>
+    <div>
+      <a class="link-button" href="/acc/home" rel="noopener noreferrer">Return home</a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    Uploading files since 2025
+  </footer>
 </body>
 </html>

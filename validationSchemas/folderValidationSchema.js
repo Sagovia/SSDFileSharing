@@ -20,7 +20,7 @@ const createFolderValidationSchema = {
     },
     isPrivate: {
         customSanitizer: {
-            options: (value) => value === "on", // Convert "on" to true, otherwise return false
+            options: (value) => value === "true", // Convert "true" to true, otherwise return false
         },
         isBoolean: {
             errorMessage: "isPrivate must be a boolean",

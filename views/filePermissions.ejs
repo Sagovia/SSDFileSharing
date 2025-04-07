@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Folder - SSDFileSharing</title>
+  <title>File Permissions</title>
   <style>
     /* Global Styles */
     body {
@@ -34,7 +34,7 @@
     .container {
       flex: 1;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
       padding: 2rem;
     }
@@ -42,16 +42,20 @@
     .card {
       background: #fff;
       border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 500px;
       padding: 2rem;
+      margin-bottom: 2rem;
     }
     .card h2 {
-      margin-top: 0;
+      margin: 0 0 1rem 0;
       color: #005f99;
-      text-align: center;
-      margin-bottom: 1.5rem;
+      font-size: 1.6rem;
+    }
+    .info p {
+      margin: 0.5rem 0;
+      font-size: 1.1rem;
     }
     /* Form Styles */
     form {
@@ -59,8 +63,8 @@
       flex-direction: column;
     }
     form label {
-      font-weight: bold;
       margin-top: 1rem;
+      font-weight: bold;
       color: #003d66;
     }
     form input[type="text"],
@@ -88,16 +92,6 @@
     form button:hover {
       background-color: #004e80;
     }
-    /* Toggle Whitelist Section with CSS: 
-       Place the whitelist section immediately after the checkbox */
-    .whitelist-group {
-      display: none;
-      flex-direction: column;
-    }
-    /* When the checkbox is checked, display the sibling .whitelist-group */
-    #isPrivate:checked + .whitelist-group {
-      display: flex;
-    }
     /* Footer */
     footer {
       background: #005f99;
@@ -111,39 +105,43 @@
 <body>
   <!-- Header -->
   <header>
-    <h1>Create a New Folder</h1>
+    <h1>File Permissions</h1>
   </header>
 
   <!-- Main Container -->
   <div class="container">
     <div class="card">
-      <form action="/acc/createFolder" method="POST">
-        <label for="name">Folder Name:</label>
-        <input type="text" id="name" name="name" required>
-
-        <!-- Private Folder Toggle -->
-        <div style="margin-top: 1rem;">
-
-          <label for="isPrivate">Private Folder?</label>
-          <input type="checkbox" id="isPrivate" name="isPrivate" value="true">
+      <!-- File Name and Current Permissions -->
+      <h2><%= fileName %></h2>
+      <div class="info">
+        <p><strong>Is Private?:</strong> <%= isPrivate ? "Yes" : "No" %></p>
+        <p><strong>Current users on whitelist:</strong>
+          <% if (usersOnViewWhitelist && usersOnViewWhitelist.length > 0) { %>
+            <%= usersOnViewWhitelist.join(", ") %>
+          <% } else { %>
+            None
+          <% } %>
+        </p>
+      </div>
+      <!-- Update Permissions Form -->
+      <form action="<%= locals.linkToPost %>" method="post">
+        <div>
+          <label for="isPrivate">Is Private?</label>
+          <input type="checkbox" id="isPrivate" name="isPrivate" value="true" <%= isPrivate ? "checked" : "" %>>
         </div>
-
-        <!-- Whitelist Section (toggle shown when checkbox is checked via CSS) -->
-        <div class="whitelist-group">
-          <label for="password">Provide folder password (optional):</label>
-          <input type="text" id="password" name="password">
-
-          <label for="viewWhitelistUsernames">View Whitelist (comma-separated usernames):</label>
-          <input type="text" id="viewWhitelistUsernames" name="viewWhitelistUsernames">
-
-          <label for="editWhitelistUsernames">Edit Whitelist (comma-separated usernames):</label>
-          <input type="text" id="editWhitelistUsernames" name="editWhitelistUsernames">
-
-          <label for="deleteWhitelistUsernames">Deletion Whitelist (comma-separated usernames):</label>
-          <input type="text" id="deleteWhitelistUsernames" name="deleteWhitelistUsernames">
+        <div>
+          <label for="addWhitelist">Add users to view whitelist (space-separated):</label>
+          <input type="text" id="addWhitelist" name="addWhitelist">
         </div>
-
-        <button type="submit">Create Folder</button>
+        <div>
+          <label for="removeWhitelist">Remove users from view whitelist (space-separated):</label>
+          <input type="text" id="removeWhitelist" name="removeWhitelist">
+        </div>
+        <div>
+            <label for="password">Reset password:</label> <br>
+            <input type="text" id="password" name="password">
+          </div>
+        <button type="submit">Update permissions</button>
       </form>
     </div>
   </div>
