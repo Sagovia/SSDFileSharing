@@ -376,6 +376,12 @@ const resolveFiletoParentFolder = async (request, response, next) => {
     return next();
 }
 
+const getParentFolder = async (request, response, next) => {
+    request.folder = await Folder.findById(request.file.parentFolder);
+    return next();
+}
+
+
 // Input request.body.parentFolderID
 // Output: Attach request.folder for parent folder, null otherwise
 const resolveFolderIDtoFolder = async (request, response, next) => {
@@ -399,4 +405,4 @@ const resolveFolderIDtoFolder = async (request, response, next) => {
 }
 
 
-module.exports = {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder, checkPasswordForFile, checkPasswordForFolder};
+module.exports = {validateFile, validateFolder, checkOwnership, checkFolderOwnership, checkWhitelist, checkFolderWhitelist, folderValidationCheck, multerFileValidationCheck, verifyPrivateWhitelist, resolveFiletoParentFolder, resolveFolderIDtoFolder, checkPasswordForFile, checkPasswordForFolder, getParentFolder};

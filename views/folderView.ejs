@@ -78,7 +78,14 @@
     <ul class="file-list">
       <% if (listOfContainedFilesNames && listOfContainedFilesNames.length > 0) { %>
         <% listOfContainedFilesNames.forEach(function(fileName, index) { %>
-          <li><%= fileName %>, <a href="<%= listOfContainedFilesDownloadLinks[index] %>">Download</a></li> 
+          <li><%= fileName %>, 
+            <a href="<%= listOfContainedFilesDownloadLinks[index] %>">Download</a>,
+            <% if (canDelete) { %>
+              <form action="<%= listOfContainedFilesDeleteLinks[index] %>" method="POST" style="display:inline;">
+                <button type="submit">Delete</button>
+              </form>
+            <% } %>
+          </li> 
         <% }); %>
       <% } else { %>
         <li>No files in this folder.</li>
