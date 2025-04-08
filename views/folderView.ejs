@@ -80,11 +80,13 @@
         <% listOfContainedFilesNames.forEach(function(fileName, index) { %>
           <li><%= fileName %>, 
             <a href="<%= listOfContainedFilesDownloadLinks[index] %>">Download</a>,
+            Uploader: <%= listOfContainedFileUploaders[index] %>
             <% if (canDelete) { %>
               <form action="<%= listOfContainedFilesDeleteLinks[index] %>" method="POST" style="display:inline;">
-                <button type="submit">Delete</button>
-              </form>
+                <button type="submit" style="text-align: end;">Delete</button>
+              </form>         
             <% } %>
+            
           </li> 
         <% }); %>
       <% } else { %>

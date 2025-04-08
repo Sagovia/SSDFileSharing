@@ -654,7 +654,18 @@ app.get("/acc/folder/:id",
         const listOfContainedFilesNames = listOfContainedFiles.map((file) => file.name);
         const listOfContainedFilesDownloadLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/` + file.id);
         const listOfContainedFilesDeleteLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/delete/` + file.id);
+        const listOfContainedFileUploaders = await Promise.all(
+            listOfContainedFiles.map(async (file) => {
+              if (file.owner) {
+                const user = await User.findById(file.owner);
+                return user ? user.username : "Guest user";
+              }
+              return "Guest user";
+            })
+          );
 
+
+          console.log(listOfContainedFileUploaders);
         const folderName = folder.name;
         const folderOwner = await User.findById(folder.owner);
         const folderOwnerName = folderOwner.username;
@@ -683,12 +694,12 @@ app.get("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
         }
 
         if(folder.password) {
@@ -737,6 +748,15 @@ app.post("/acc/folder/:id",
         const listOfContainedFilesDownloadLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/` + file.id);
         const listOfContainedFilesDeleteLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/delete/` + file.id);
 
+        const listOfContainedFileUploaders = await Promise.all(
+            listOfContainedFiles.map(async (file) => {
+              if (file.owner) {
+                const user = await User.findById(file.owner);
+                return user ? user.username : "Guest user";
+              }
+              return "Guest user";
+            })
+          );
 
         const folderName = folder.name;
         const folderOwner = await User.findById(folder.owner);
@@ -766,12 +786,12 @@ app.post("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
         }
 
         if(folder.password) {
