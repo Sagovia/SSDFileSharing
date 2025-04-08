@@ -17,7 +17,32 @@ const User = require('../models/User.js'); // Import our mongoose User object
 const Folder = require('../models/Folder.js'); // Import our mongoose Folder object
 const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
 const {query, validationResult, body, matchedData, checkSchema} = require('express-validator'); // Import express-validator
+const crypto = require("crypto");
+// const csurf = require("csurf");
+// const csrfProtection = csurf({ cookie: false }); // Using session-based tokens
 
+/*
+function csrfBeforeMulter(req, res, next) {
+    if (req.method === "POST" && req.is("multipart/form-data")) {
+        const busboy = require('busboy');
+        const bb = busboy({ headers: req.headers });
+        let token;
+
+        bb.on('field', (name, val) => {
+            if (name === "_csrf") token = val;
+        });
+
+        bb.on('finish', () => {
+            req.body = { _csrf: token };
+            csrfProtection(req, res, next); // Apply csurf here
+        });
+
+        req.pipe(bb);
+    } else {
+        next();
+    }
+}
+*/
 
 
 // Import middlewares:
@@ -46,17 +71,15 @@ const PORT = 3000;
 
 const app = express();
 
-// Set up EJS as the view engine, must use before response.render() will work
-app.set("view engine", "ejs");
-
 // Global middleware
 
-// Middleware to parse content-type json bodies in request, allows request.body to be defined
-app.use(express.json());
-app.use(express.urlencoded({extended: true })); 
-app.use(cookieParser("session cookie secret value")) // cookieParser must use same secret value as session
-app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep users signed in even after server restarts
-    secret: "session cookie secret value", // TODO: Maybe generate this dynamically? Unsure what is most secure
+
+
+const SESSION_SECRET = crypto.randomBytes(64).toString("hex");
+
+
+app.use(session({ 
+    secret: SESSION_SECRET, 
     saveUninitialized: false,
     resave: false,
     cookie: {
@@ -66,8 +89,27 @@ app.use(session({ // Set up sessions TODO: Create MongoDB session store to keep 
         client: mongoose.connection.getClient()
     })
 }));
+
+
+app.use(cookieParser(SESSION_SECRET)); // cookieParser must use same secret value as session
+
+// Middleware to parse content-type json bodies in request, allows request.body to be defined
+app.use(express.urlencoded({extended: true })); 
+app.use(express.json());
+
+
+
 app.use(passport.initialize());
 app.use(passport.session()); //
+
+
+
+
+
+// Set up EJS as the view engine, must use before response.render() will work
+app.set("view engine", "ejs");
+
+
 
 
 // Pages
@@ -160,7 +202,7 @@ app.post("/login",
         if(request.user == null) { // If login not successful
             // Return back to /index, and send the link to the file back:
             // TODO: Make error message more specific, can do via passing message object in done() in strategy definition
-            response.render("loginPage", /*CSRF*/ {msg : `Invalid credentials, please try again.`});
+            response.render("loginPage",  {msg : `Invalid credentials, please try again.`});
         }
 
         response.redirect("/acc/home");
@@ -259,7 +301,7 @@ app.post("/upload",
         console.log(newFile);
 
         // Return back to /index, and send the link to the file back:
-        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`}, );
+        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`} );
 })
 
 
@@ -270,10 +312,10 @@ app.get("/upload",
             const parentFolderID = request.query.parentFolderID;
             console.log("Testing11");
             console.log(parentFolderID);
-            return response.render("index", {parentFolderID: parentFolderID, /*CSRF*/});
+            return response.render("index", {parentFolderID: parentFolderID});
         }
         // Otherwise not needed
-        return response.render("index", { /*CSRF*/});
+        return response.render("index", {});
     }
 )
 
