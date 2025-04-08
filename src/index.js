@@ -651,6 +651,7 @@ app.get("/acc/folder/:id",
         })); // Will return list of File objects contained by the Folder
 
         const listOfContainedFilesNames = listOfContainedFiles.map((file) => file.name);
+        const listOfContainedFilesDownloadLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/` + file.id);
 
         const folderName = folder.name;
         const folderOwner = await User.findById(folder.owner);
@@ -680,12 +681,12 @@ app.get("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks}); // TODO: Create page to show all folder content
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks}); // TODO: Create page to show all folder content
         }
 
         if(folder.password) {
@@ -731,6 +732,7 @@ app.post("/acc/folder/:id",
         })); // Will return list of File objects contained by the Folder
 
         const listOfContainedFilesNames = listOfContainedFiles.map((file) => file.name);
+        const listOfContainedFilesDownloadLinks = listOfContainedFiles.map((file) => `${request.protocol}://${request.get('host')}/file/` + file.id);
 
         const folderName = folder.name;
         const folderOwner = await User.findById(folder.owner);
@@ -760,12 +762,12 @@ app.post("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks}); // TODO: Create page to show all folder content
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks}); // TODO: Create page to show all folder content
         }
 
         if(folder.password) {
@@ -861,10 +863,10 @@ app.post("/acc/createFolder",
 app.post("/acc/folder/delete/:id",
     validateFolder, // Adds request.folder if folder request is valid
     checkFolderOwnership, // Adds .isFolderOwner to request
-    (request, response) => {
+    async (request, response) => {
         if(request.folder) { // If requested folder to delete exists
             if(request.isFolderOwner) {
-                deleteFolder(request.folder);
+                await deleteFolder(request.folder);
                 response.redirect("/acc/home");
             }
             else {

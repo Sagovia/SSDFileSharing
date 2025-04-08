@@ -39,7 +39,7 @@ const deleteFile = async (file) => {
         // If file has a parent folder, remove it from the folder's filesContained array
         
         if (file.parentFolder != null) {
-            const parentFolder = await Folder.findById(file.parentFolder.id);
+            const parentFolder = await Folder.findById(file.parentFolder._id);
             parentFolder.filesContained = parentFolder.filesContained.filter(curFile => curFile.toString() !== file.id);
             await parentFolder.save();
             
@@ -60,10 +60,12 @@ const deleteFile = async (file) => {
 // Input: folder (assumed to be prevalidated and non-null)
 // Output: Deletes the folder and all files stored inside it
 const deleteFolder = async (folder) => {
+    console.log("Inside helper deleteFolder");
     // Assuming folder.filesContained is an array of file IDs (or file objects)
     for (const fileId of folder.filesContained) {
         // If filesContained is just IDs, fetch the file document:
         const file = await File.findById(fileId);
+        console.log(file);
         if (file) {
             await deleteFile(file);
         }
