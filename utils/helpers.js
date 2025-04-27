@@ -85,7 +85,7 @@ const renderFileView = (req, res) => {
     const requestedFileDownloadCount = requestedFile.downloadCount;
     const requestedFileLink = `${req.protocol}://${req.get('host')}/file/${requestedFile.id}`;
 
-    res.render("fileView", { fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount });
+    res.render("fileView", { fileName: requestedFileName, fileLink: requestedFileLink, downloadCount: requestedFileDownloadCount});
 };
 
 

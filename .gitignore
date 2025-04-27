@@ -1,2 +1,3 @@
 node_modules/
 uploads/
+__tests__/csrf-test.js

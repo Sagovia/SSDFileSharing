@@ -1,6 +1,14 @@
 // Current setup: Files will be saved at /uploads, while file -
 // -metadata(including the path, name of file, password (optional) and number of downloads) will be stored in MongoDB database
 
+
+require('dotenv').config(); 
+const crypto = require("crypto");
+const SESSION_SECRET = crypto.randomBytes(64).toString('hex');
+
+process.env.ME_CONFIG_SITE_COOKIESECRET = SESSION_SECRET;
+process.env.ME_CONFIG_SITE_SESSIONSECRET = SESSION_SECRET;
+
 // Import modules
 const express = require("express");
 const multer = require('multer');
@@ -17,8 +25,13 @@ const User = require('../models/User.js'); // Import our mongoose User object
 const Folder = require('../models/Folder.js'); // Import our mongoose Folder object
 const MongoStore = require("connect-mongo"); // Import connect-mongo for creating a persistent session store
 const {query, validationResult, body, matchedData, checkSchema} = require('express-validator'); // Import express-validator
-const crypto = require("crypto");
-// const csurf = require("csurf");
+const csurf = require("csurf");
+const csrfProtection = csurf({ cookie: true });
+
+
+
+
+
 // const csrfProtection = csurf({ cookie: false }); // Using session-based tokens
 
 /*
@@ -56,6 +69,7 @@ const folderValidationScema = require("../validationSchemas/folderValidationSche
 
 // Import helper functions
 const {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder, renderFilePermissions, parseAndValidateList, modifyFilePermissions, modifyFilePassword, renderFolderPermissions, modifyFolderPassword, modifyFolderPermissions} = require('../utils/helpers.js'); 
+const { csrf } = require("lusca");
 
 
 // TODO: Login session expires even if in use, want it to last longer
@@ -72,10 +86,11 @@ const PORT = 3000;
 const app = express();
 
 // Global middleware
+const mongoExpress = require('mongo-express/lib/middleware');
+const mongoExpressConfig = require("../node_modules/mongo-express/config.default.js");
+app.use('/admin', mongoExpress(mongoExpressConfig));
 
 
-
-const SESSION_SECRET = crypto.randomBytes(64).toString("hex");
 
 
 app.use(session({ 
@@ -101,6 +116,17 @@ app.use(express.json());
 
 app.use(passport.initialize());
 app.use(passport.session()); //
+
+
+// CSRF stuff
+app.use(function (err, req, res, next) {
+    switch (err.code) {
+      case 'EBADCSRFTOKEN':
+        break
+      case 'LIMIT_FILE_SIZE':
+        break
+    }
+  })
 
 
 
@@ -149,6 +175,7 @@ Input:  {
 // Input: Accepts username, password, email
 // Output: Errors if invalid input, will redirect to /login upon success
 app.post("/register",
+    csrfProtection,
     checkSchema(userValidationSchema), // Validation for user register info
     async (request, response) => {
         console.log("Inside POST /register");
@@ -180,13 +207,15 @@ app.post("/register",
 
 // Will display registerPage if not logged in, redirect to /acc/home otherwise
 app.get("/register",
+    csrfProtection,
     (request, response) => {
         console.log("Inside GET /register");
         if(request.user) { // If logged in
             response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc/home
         }
         else {
-            response.render("registerPage" /*CSRF*/); // Display register page
+            csrfToken = request.csrfToken();
+            response.render("registerPage", {csrfToken}); // Display register page
         }
     }
 )
@@ -197,6 +226,7 @@ app.get("/register",
 // Input: Username, password
 // Output: Error message upon failure, redirect to /acc if successful, possibly alongside info like username
 app.post("/login",
+    csrfProtection,
     passport.authenticate("local"), 
     (request, response) => {
         if(request.user == null) { // If login not successful
@@ -211,12 +241,14 @@ app.post("/login",
 
 
 app.get("/login",
+    csrfProtection,
     (request, response) => {
         if(request.user) { // If logged in
             return response.redirect("/acc/home"); // If user is already logged in, will just redirect to /acc
         }
         else {
-            return response.render("loginPage" /*CSRF*/); // Display register page
+            csrfToken = request.csrfToken();
+            return response.render("loginPage", {csrfToken}); // Display register page
         }
     }
 )
@@ -243,6 +275,7 @@ app.post("/logout",
 // Input: password, parentFolderID (Optional), isPrivate + viewWhitelistUsernames string (optional)
 app.post("/upload",
     upload.single("file"), // Upload file
+    csrfProtection,
     checkSchema(fileValidationSchema), // Validate password is valid (if given)
     multerFileValidationCheck, // Will validate uploaded file info + sanitize file name
     resolveFolderIDtoFolder,// Idea: Middleware to attach request.folder for parent folder (if exists)
@@ -301,21 +334,24 @@ app.post("/upload",
         console.log(newFile);
 
         // Return back to /index, and send the link to the file back:
-        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`} );
+        csrfToken = request.csrfToken();
+        response.render("index", {fileLink : `${request.headers.origin}/file/${newFile.id}`, csrfToken} );
 })
 
 
 app.get("/upload", 
+    csrfProtection,
     (request, response) => {
         console.log("Inside GET /upload");
+        csrfToken = request.csrfToken();
         if(request.query.parentFolderID != null) { // If uploading to a folder, pass the parentFolderID for the upload
             const parentFolderID = request.query.parentFolderID;
             console.log("Testing11");
             console.log(parentFolderID);
-            return response.render("index", {parentFolderID: parentFolderID});
+            return response.render("index", {parentFolderID: parentFolderID, csrfToken});
         }
         // Otherwise not needed
-        return response.render("index", {});
+        return response.render("index", {csrfToken});
     }
 )
 
@@ -325,6 +361,7 @@ app.get("/upload",
 
 app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
     checkSchema(fileValidationSchema), // Validate password is valid (if given)
+    csrfProtection,
     validateFile, // attach request.file if exists, returns err if otherwise
     checkOwnership, // attach request.isFileOwner
     checkWhitelist, // attach request.passesFileViewWhitelist
@@ -363,8 +400,6 @@ app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is
             return response.render("password");
         }
 
-        
-        return response.status(403).send("No permissions to view this file."); 
     }
 )
 
@@ -406,35 +441,14 @@ app.post("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder i
         else {
             return response.render("password");
         }
-
-        
-        return response.status(403).send("No permissions to view this file."); 
     }
 )
 
-
-
-
-
-
-/*
-app.post("/file/view/:id",  
-    validateFile, 
-    checkOwnership, 
-    checkWhitelist, 
-    checkPassword,
-    (request, response) => {
-        // All checks passed, render the file info
-        renderFileView(request, response);
-    }
-)
-*/
 
 
 // Specifically for logged in users, will attempt to delete the file (assuming they own it + it exists)
 // Input: fileName
 // Output: Success or failure + error message
-// TODO: Be very careful with how you decide what they can delete, make sure that they can't input a file path to somewhere else
 app.post("/file/delete/:id",
     validateFile, // attach request.file if exists, returns err if otherwise
     checkOwnership, // attach request.isFileOwner
@@ -445,21 +459,6 @@ app.post("/file/delete/:id",
     checkPasswordForFile, // Will redirect to password screen if password needed but not given or incorrect
     async (request, response) => {
         console.log("Inside POST /file/delete")
-        /*
-        Logic:
-        If (File is in a folder):
-            if(folder is public):
-                Allow deletion
-            else if(User on folder deletion whitelist):
-                Allow deletion
-        else if(user owns file):
-            Allow deletion
-        else if(Not logged in):
-            Redirect to /login
-        else:
-            Error, permission denied
-        */
-
         if(request.folder) { // If file is in folder
             if(!request.folder.isPrivate) { // If folder is public
                 await deleteFile(request.file);
