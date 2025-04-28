@@ -2,58 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= nonce %>'; style-src 'self' 'nonce-<%= nonce %>';">
+
   <title><%= folderName %> - Folder View</title>
-  <style>
+  <style nonce="<%= nonce %>">
     body {
-      font-family: Arial, sans-serif;
+      font-family: Arial;
+      background-color: whitesmoke;
       margin: 20px;
-      background-color: #f9f9f9;
     }
     .folder-header {
-      border-bottom: 2px solid #ccc;
       margin-bottom: 20px;
       padding-bottom: 10px;
+      border-bottom: 2px solid gainsboro;
     }
     .folder-header h1 {
+      font-size: 1.8em;
       margin: 0;
-      font-size: 2em;
     }
     .folder-header p {
+      color: darkgrey;
       margin: 5px 0;
-      color: #555;
     }
     .permissions {
-      margin: 10px 0;
-      padding: 10px;
-      background: #e8e8e8;
-      border-radius: 5px;
+      background: gainsboro;
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 10px;
     }
     .permissions p {
-      margin: 0 0 5px 0;
       font-weight: bold;
+      margin: 0 0 5px 0;
     }
     .permissions ul {
-      list-style-type: none;
-      padding: 0;
       margin: 0;
+      padding: 0;
+      list-style-type: none;
     }
     .permissions li {
-      margin: 3px 0;
+      margin: 4px 0;
     }
     .file-list-container h2 {
       margin-top: 0;
     }
     ul.file-list {
-      list-style-type: none;
       padding-left: 0;
+      list-style-type: none;
     }
     ul.file-list li {
-      background: #fff;
       padding: 10px;
       margin: 5px 0;
-      border: 1px solid #ddd;
+      border: 2px solid gainsboro;
       border-radius: 3px;
+      background: whitesmoke;
     }
   </style>
 </head>

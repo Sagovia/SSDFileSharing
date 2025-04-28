@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
-const { validateFile } = require("../utils/middlewares"); // adjust path
+const { validateFile } = require("../utils/middlewares"); 
 const File = require("../models/File");
 
-jest.mock("../models/File"); // Auto-mock File model
+jest.mock("../models/File"); 
 
 describe("validateFile middleware", () => {
   let req, res, next;
@@ -46,13 +46,13 @@ describe("validateFile middleware", () => {
 
   test("valid ID but File.findById returns null → 404 File not found", async () => {
     jest.spyOn(mongoose.Types.ObjectId, "isValid").mockReturnValue(true);
-    req.params.id = "507f1f77bcf86cd799439011"; // valid 24-char hex
+    req.params.id = "80aa6e5016513cf377e3ddc4"; // valid 24-char hex
     File.findById.mockResolvedValue(null);
 
     await validateFile(req, res, next);
 
-    expect(mongoose.Types.ObjectId.isValid).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
-    expect(File.findById).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
+    expect(mongoose.Types.ObjectId.isValid).toHaveBeenCalledWith("80aa6e5016513cf377e3ddc4");
+    expect(File.findById).toHaveBeenCalledWith("80aa6e5016513cf377e3ddc4");
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.send).toHaveBeenCalledWith("File not found");
     expect(next).not.toHaveBeenCalled();
@@ -60,13 +60,13 @@ describe("validateFile middleware", () => {
 
   test("valid ID and file found → attach req.file and call next()", async () => {
     jest.spyOn(mongoose.Types.ObjectId, "isValid").mockReturnValue(true);
-    req.params.id = "507f1f77bcf86cd799439011";
-    const fakeFile = { id: "507f1f77bcf86cd799439011", name: "test.txt" };
+    req.params.id = "80aa6e5016513cf377e3ddc4";
+    const fakeFile = { id: "80aa6e5016513cf377e3ddc4", name: "test.txt" };
     File.findById.mockResolvedValue(fakeFile);
 
     await validateFile(req, res, next);
 
-    expect(File.findById).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
+    expect(File.findById).toHaveBeenCalledWith("80aa6e5016513cf377e3ddc4");
     expect(req.file).toBe(fakeFile);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();

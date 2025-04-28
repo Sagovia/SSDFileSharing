@@ -1,7 +1,3 @@
-// Current setup: Files will be saved at /uploads, while file -
-// -metadata(including the path, name of file, password (optional) and number of downloads) will be stored in MongoDB database
-
-
 require('dotenv').config(); 
 const crypto = require("crypto");
 const SESSION_SECRET = crypto.randomBytes(64).toString('hex');
@@ -18,7 +14,7 @@ const bcrypt = require("bcrypt");
 const session = require('express-session'); // Import to use use sessions
 const cookieParser = require('cookie-parser'); // Import to parse cookies (like session cookies)
 // Multer processes files in the multipart/form-data format. (middleware)
-const passport = require("passport"); // TODO: Remember to download + implement TOTP MFA Passport strategy later
+const passport = require("passport"); 
 const upload = multer({dest: "uploads"})
 require("../strategies/local-strategy.js"); // Import our local strategy for Passport.js authentication
 const User = require('../models/User.js'); // Import our mongoose User object
@@ -32,30 +28,6 @@ const csrfProtection = csurf({ cookie: true });
 
 
 
-// const csrfProtection = csurf({ cookie: false }); // Using session-based tokens
-
-/*
-function csrfBeforeMulter(req, res, next) {
-    if (req.method === "POST" && req.is("multipart/form-data")) {
-        const busboy = require('busboy');
-        const bb = busboy({ headers: req.headers });
-        let token;
-
-        bb.on('field', (name, val) => {
-            if (name === "_csrf") token = val;
-        });
-
-        bb.on('finish', () => {
-            req.body = { _csrf: token };
-            csrfProtection(req, res, next); // Apply csurf here
-        });
-
-        req.pipe(bb);
-    } else {
-        next();
-    }
-}
-*/
 
 
 // Import middlewares:
@@ -72,7 +44,7 @@ const {hashPassword, deleteFile, renderFileView, renderHomepage, deleteFolder, r
 const { csrf } = require("lusca");
 
 
-// TODO: Login session expires even if in use, want it to last longer
+
 
 
 mongoose
@@ -86,9 +58,14 @@ const PORT = 3000;
 const app = express();
 
 // Global middleware
-const mongoExpress = require('mongo-express/lib/middleware');
-const mongoExpressConfig = require("../node_modules/mongo-express/config.default.js");
-app.use('/admin', mongoExpress(mongoExpressConfig));
+
+var mongo_express
+var mongo_express_config
+
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+
+
 
 
 
@@ -98,12 +75,14 @@ app.use(session({
     saveUninitialized: false,
     resave: false,
     cookie: {
-        maxAge: 60000 * 60 * 24 * 7 // Session cookies expire after 1 week TODO: Maybe make longer?
+        maxAge: 60000 * 60 * 24 * 7
     },
     store: MongoStore.create({ // For creating the persistent session store
         client: mongoose.connection.getClient()
     })
 }));
+
+
 
 
 app.use(cookieParser(SESSION_SECRET)); // cookieParser must use same secret value as session
@@ -127,7 +106,31 @@ app.use(function (err, req, res, next) {
         break
     }
   })
+  const { spawn } = require('child_process');
 
+  // Nonce-generator middleware
+app.use((req, res, next) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+  });
+
+const me = spawn('npx', [
+    'mongo-express',
+    '--url',  'mongodb://localhost:27017',  // full connection string
+    '--port', '3100'
+    ], {
+    stdio: 'inherit',
+    env: {
+        ...process.env,
+        ME_CONFIG_MONGODB_URL:            'mongodb://localhost:27017',
+        ME_CONFIG_MONGODB_ENABLE_ADMIN:   'true',      
+        ME_CONFIG_SITE_COOKIESECRET:      SESSION_SECRET,
+        ME_CONFIG_SITE_SESSIONSECRET:     SESSION_SECRET,
+        ME_CONFIG_BASICAUTH_ENABLED:      'true',      
+        ME_CONFIG_BASICAUTH_USER:         'admin',
+        ME_CONFIG_BASICAUTH_PASS:         'pass'
+    }
+});  
 
 
 
@@ -137,36 +140,20 @@ app.set("view engine", "ejs");
 
 
 
-
+app.get('/admin', (req, res) => {
+    res.redirect('http://localhost:3100');
+  });
 // Pages
 app.get("/", // Home page
     (request, response) => {
         // Will look for view template called index, usually in folder "views"
-        // By default, it will be sent to upload screen, let's change
         const folderUploadLink = `${request.protocol}://${request.get('host')}/upload`;
         const loginLink = `${request.protocol}://${request.get('host')}/login`;
         const registerLink = `${request.protocol}://${request.get('host')}/register`;
-        response.render("home", {folderUploadLink, loginLink, registerLink});  // TODO: add basic home screen, with login/register button
+        response.render("home", {folderUploadLink, loginLink, registerLink});  
 
     }
 )
-
-
-// Page used for uploading files
-
-/* TODO:
-- Add middleware for input validation (Multer has built-in file valiation tools via modifying "upload" var, should use these)
-- Add middlware for generating + verifying user sessions via express sessions (Access data via request.session)
-- Add middleware for authenticating user via Passport.js, request.user != null if successful + logged in
-
-*/
-// Should be presented with option to do basic upload (no account required) or precise upload (account required)
-/*
-Input:  {
-    file (required), 
-}
-*/
-
 
 
 
@@ -231,7 +218,6 @@ app.post("/login",
     (request, response) => {
         if(request.user == null) { // If login not successful
             // Return back to /index, and send the link to the file back:
-            // TODO: Make error message more specific, can do via passing message object in done() in strategy definition
             response.render("loginPage",  {msg : `Invalid credentials, please try again.`});
         }
 
@@ -310,7 +296,6 @@ app.post("/upload",
 
         if(request.folder != null) { // Now consider if uploading to a folder
             if(!request.isFolderOwner && !request.canEditFolder) { // Has no permissions to upload to folder
-                // FIX NEEDED, TODO remove the file, it's been uploaded already
                 return response.status(403).send("No permissions to add to this folder"); 
             }
             // Folder selection valid, update parentFolder for new file
@@ -346,7 +331,6 @@ app.get("/upload",
         csrfToken = request.csrfToken();
         if(request.query.parentFolderID != null) { // If uploading to a folder, pass the parentFolderID for the upload
             const parentFolderID = request.query.parentFolderID;
-            console.log("Testing11");
             console.log(parentFolderID);
             return response.render("index", {parentFolderID: parentFolderID, csrfToken});
         }
@@ -359,7 +343,7 @@ app.get("/upload",
 // Input: File id as route paramter, password (optional), request.user
 // Output: Will display file if passed access controls
 
-app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
+app.get("/file/view/:id",  
     checkSchema(fileValidationSchema), // Validate password is valid (if given)
     csrfProtection,
     validateFile, // attach request.file if exists, returns err if otherwise
@@ -371,10 +355,6 @@ app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is
     checkPasswordForFile, // Renders password entering page if missing or incorrect
     (request, response) => {
         console.log("Inside GET /file/view/:id");
-        console.log(request.isFileOwner);
-        console.log(request.isFolderOwner);
-        console.log(request.canViewFolder);
-        console.log(request.passesFileViewWhitelist);
 
 
         if(request.folder) { // If file is in a parent folder
@@ -396,7 +376,6 @@ app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is
             return renderFileView(request, response);
         }
         else {
-            console.log("test");
             return response.render("password");
         }
 
@@ -404,7 +383,7 @@ app.get("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is
 )
 
 // If we need to enter password to view the file details
-app.post("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder is related or not
+app.post("/file/view/:id", 
     checkSchema(fileValidationSchema), // Validate password is valid (if given)
     validateFile, // attach request.file if exists, returns err if otherwise
     checkOwnership, // attach request.isFileOwner
@@ -415,10 +394,6 @@ app.post("/file/view/:id",  // TODO: DO THIS NEXT, also check if parent folder i
     checkPasswordForFile, // Renders password entering page if missing or incorrect
     (request, response) => {
         console.log("Inside GET /file/view/:id");
-        console.log(request.isFileOwner);
-        console.log(request.isFolderOwner);
-        console.log(request.canViewFolder);
-        console.log(request.passesFileViewWhitelist);
 
         if(request.folder) { // If file is in a parent folder
             if(!(request.isFolderOwner || request.canViewFolder)) {
@@ -553,7 +528,7 @@ app.post("/file/:id",
     async (request, response) => {
         console.log("Inside POST /file/:id");
 
-        console.log(request.correctFilePassword);
+
 
         const requestedFile = request.file;
 
@@ -628,23 +603,8 @@ app.get("/acc/folder/:id",
     checkPasswordForFolder, // Adds request.correctFolderPassword
     async (request, response) => {
         console.log("Inside GET /acc/folder/:id");
-        console.log(request.isFolderOwner);
-        console.log(request.canViewFolder);
-        console.log(request.canDeleteFolder);
-        console.log(request.canEditFolder);
-        console.log(request.correctFolderPassword);
-        /*
-            TODO:
-            if(owns file or .canViewFolder or is public folder):
-                Render folderView
-            else if(folder has password and user enters it correctly):
-                Grant them temp session access via req.session.tempFolderAccess 
-            else:
-                Reject user
-        */
 
-        
-
+       
         const folder = request.folder;
         const listOfContainedFiles = await Promise.all(folder.filesContained.map(async (curFileId) => {
             return await File.findById(curFileId); 
@@ -693,12 +653,12 @@ app.get("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); 
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); 
         }
 
         if(folder.password) {
@@ -721,20 +681,8 @@ app.post("/acc/folder/:id",
     checkPasswordForFolder, // Adds request.correctFolderPassword
     async (request, response) => {
         console.log("Inside GET /acc/folder/:id");
-        console.log(request.isFolderOwner);
-        console.log(request.canViewFolder);
-        console.log(request.canDeleteFolder);
-        console.log(request.canEditFolder);
-        console.log(request.correctFolderPassword);
-        /*
-            TODO:
-            if(owns file or .canViewFolder or is public folder):
-                Render folderView
-            else if(folder has password and user enters it correctly):
-                Grant them temp session access via req.session.tempFolderAccess 
-            else:
-                Reject user
-        */
+
+        
 
         
 
@@ -785,12 +733,12 @@ app.post("/acc/folder/:id",
             request.session.tempFolderAccess.push(folder.id); // Add current folder id to list of temporary access folders for cur session
 
             canView = true; // Can view if they have password
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); 
         }
 
 
         if(!request.folder.isPrivate || request.isFolderOwner || request.canViewFolder) { // requested folder is public, no special check needed
-            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); // TODO: Create page to show all folder content
+            return response.render("folderView", {folderUploadLink, isOwner, listOfContainedFilesNames, folderName, folderOwnerName, canEdit, canView, canDelete, isLoggedIn, homepageLink, listOfContainedFilesDownloadLinks, listOfContainedFilesDeleteLinks, listOfContainedFileUploaders}); 
         }
 
         if(folder.password) {

@@ -32,7 +32,7 @@ async function populateFolders(count) {
   return inserted;
 }
 
-describe("resolveFolderIDtoFolder performance (using real MongoDB lookup)", () => {
+describe("resolveFolderIDtoFolder performance", () => {
   const iterations = 1000;
   const folderCounts = [100, 1000, 5000, 10000];
 

@@ -1,7 +1,6 @@
 // This will be the MongoDB model for our files
 // Not storing the file data itself
 
-// TODO: Add other metadata, like date added
 
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
@@ -25,7 +24,7 @@ const fileSchema = new Schema({
         default: 0 // By default, the file has been downloaded 0 times
     },
     // User who uploaded the File will be considered the owner
-    owner: { // This will reference the _id of the owner, must be a User TODO: Figure out validation checking for this later
+    owner: { // This will reference the _id of the owner, must be a User 
         type: Schema.Types.ObjectId,
         ref: 'User', // Refers to the User model 
         // Not required, owner can be null if file is uploaded by user with no account
@@ -38,9 +37,6 @@ const fileSchema = new Schema({
         type: Schema.Types.ObjectId, 
         ref: 'Folder' 
     }
-    /*
-    TODO: Will need to add other related info here, description maybe, upload date etc.
-    */
 })
 
 

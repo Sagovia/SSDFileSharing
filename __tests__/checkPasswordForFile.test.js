@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const { checkPasswordForFile } = require("../utils/middlewares"); // adjust path as needed
+const { checkPasswordForFile } = require("../utils/middlewares"); 
 const { validationResult, matchedData } = require("express-validator");
 
 jest.mock("express-validator");

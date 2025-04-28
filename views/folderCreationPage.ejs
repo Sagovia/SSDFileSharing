@@ -2,35 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= nonce %>'; style-src 'self' 'nonce-<%= nonce %>';">
   <title>Create Folder - SSDFileSharing</title>
-  <style>
-    /* Global Styles */
+  <style nonce="<%= nonce %>">
+
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f4f9fc;
-      color: #333;
-      display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      font-family: Arial;
+      display: flex;
+      background-color: whitesmoke;
+      color: darkgray;
     }
-    a {
-      text-decoration: none;
-      color: #005f99;
-    }
-    /* Header */
+
+
     header {
       background: #005f99;
-      color: #fff;
-      padding: 1.5rem 2rem;
+      color: whitesmoke;
+      padding: 1.6rem 2rem;
       text-align: center;
     }
+
     header h1 {
       margin: 0;
-      font-size: 1.8rem;
+      font-size: 2rem;
     }
-    /* Main Container */
+
+
     .container {
       flex: 1;
       display: flex;
@@ -38,58 +40,66 @@
       align-items: center;
       padding: 2rem;
     }
-    /* Card Style */
+
+
     .card {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 500px;
       padding: 2rem;
+      background: white;
+      border-radius: 10px;
+      max-width: 450px;
     }
     .card h2 {
       margin-top: 0;
-      color: #005f99;
       text-align: center;
       margin-bottom: 1.5rem;
+      color: #005f99;
     }
-    /* Form Styles */
+
+    
+
     form {
       display: flex;
       flex-direction: column;
     }
-    form label {
-      font-weight: bold;
-      margin-top: 1rem;
-      color: #003d66;
+
+    form button {
+      background-color: #005f99;
+      border: none;
+      color: whitesmoke;
+      padding: 0.7rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 1.6rem;
     }
+
+ 
     form input[type="text"],
     form input[type="password"] {
+      border-radius: 4px;
       padding: 0.5rem;
       font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      border: 1px solid lightgray;
       margin-top: 0.5rem;
+    }
+    form label {
+      color: #003d66;
+      font-weight: bold;
+      margin-top: 1rem;
     }
     form input[type="checkbox"] {
       margin-right: 0.5rem;
     }
-    form button {
-      margin-top: 1.5rem;
-      padding: 0.75rem;
-      font-size: 1rem;
-      background-color: #005f99;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
+    
+
+    a {
+      text-decoration: none;
+      color: #005f99;
     }
-    form button:hover {
-      background-color: #004e80;
-    }
+
     /* Toggle Whitelist Section with CSS: 
-       Place the whitelist section immediately after the checkbox */
+    Place the whitelist section immediately after the checkbox */
     .whitelist-group {
       display: none;
       flex-direction: column;
@@ -98,13 +108,15 @@
     #isPrivate:checked + .whitelist-group {
       display: flex;
     }
-    /* Footer */
+
+
+
     footer {
+      color: white;
+      font-size: 1rem;
+      padding: 1.3rem 2rem;
       background: #005f99;
-      color: #fff;
-      padding: 1rem 2rem;
       text-align: right;
-      font-size: 0.9rem;
     }
   </style>
 </head>

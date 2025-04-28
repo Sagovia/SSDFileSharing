@@ -1,3 +1,5 @@
+
+// Commented out so it doesn't run every time, since it uploads files it can take quite a bit of storage space
 /*const request = require("supertest");
 const { performance } = require("perf_hooks");
 const app = require("../src/index");

@@ -2,127 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Account Home - SSDFileSharing</title>
   <style>
-    /* Global Styles */
+
+   html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f4f9fc;
-      color: #333;
       display: flex;
+      font-family: Arial;
+      background-color: white;
+      color: darkgray;
       flex-direction: column;
-      min-height: 100vh;
     }
+
+    .header {
+      padding: 1.5rem 2rem;
+      text-align: center;
+      background: #005f99;
+      color: white;
+    }
+    .header h1 {
+      font-size: 2rem;
+      margin: 0;
+    }
+
     a {
       text-decoration: none;
       color: #005f99;
     }
-    /* Header */
-    .header {
-      background: #005f99;
-      color: #fff;
-      padding: 1.5rem 2rem;
-      text-align: center;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 2rem;
-    }
-    /* Upload Button */
-    .upload-button {
-      margin: 2rem auto;
-      padding: 1rem 2rem;
-      background: #007bb5;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      text-align: center;
-      width: 90%;
-      max-width: 400px;
-      transition: background 0.3s ease;
-    }
-    .upload-button:hover {
-      background: #005f99;
-    }
-    /* Main Sections */
-    .sections {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-      padding: 0 2rem;
-    }
+
     .section {
-      background: #fff;
       padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      background: white;
     }
     .section h2 {
       margin-top: 0;
       color: #005f99;
     }
-    /* Boxes for Files and Folders */
-    .box-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+
+
+    .upload-button {
+      color: white;
+      font-size: 1rem;
+      margin: 2rem auto;
+      cursor: pointer;
+      text-align: center;
+      padding: 1rem 2rem;
+      max-width: 400px;
+      background: #007bb5;
+      width: 90%;
     }
+
+    .sections {
+      flex-direction: column;
+      padding: 0 2rem;
+      flex: 1;
+      display: flex;
+      gap: 2rem;
+    }
+    
+
+
+    .box .actions {
+      font-size: 0.9rem;
+      color: #005f99;
+      margin-top: 0.5rem;
+    }
+
+
     .box {
-      background: #eaf3fa;
-      border: 1px solid #d1e7f2;
       border-radius: 4px;
       padding: 1rem;
-      flex: 1 1 calc(33.33% - 1rem);
+      flex: 1 1 0%;
+      background: whitesmoke;
+      border: 1px solid whitesmoke;
       min-width: 250px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       position: relative;
     }
+    .box-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
     .box h3 {
       margin: 0 0 0.5rem 0;
-      font-size: 1.2rem;
+      font-size: 1rem;
       color: #003d66;
     }
-    .box .actions {
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      color: #005f99;
-    }
+
     .box .actions a {
       margin-right: 0.5rem;
     }
     .box form {
       display: inline;
     }
-    /* Create Folder Button */
+
+
     .create-folder-button {
-      display: inline-block;
-      margin-bottom: 1rem;
-      padding: 0.75rem 1.5rem;
-      background: #007bb5;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
       cursor: pointer;
       text-align: center;
-      transition: background 0.3s ease;
+      padding: 0.75rem 1.5rem;
+      margin-bottom: 1rem;
+      border: none;
+      color: whitesmoke;
+      border-radius: 4px;
+      background: #007bb5;
+      display: inline-block;
     }
-    .create-folder-button:hover {
-      background: #005f99;
-    }
-    /* Footer */
+
+
+
     footer {
       background: #005f99;
-      color: #fff;
+      color: whitesmoke;
       padding: 1rem 2rem;
       text-align: right;
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
   </style>
 </head>

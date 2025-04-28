@@ -2,142 +2,142 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= nonce %>'; style-src 'self' 'nonce-<%= nonce %>';">
   <title>SSDFileSharing</title>
-  <style>
-    /* Global Styles */
+  <style nonce="<%= nonce %>">
+
+    
+
+    html, body {
+      height: 100%;
+    }
+
     body {
+      background-color: whitesmoke;
       margin: 0;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f4f9fc;
-      color: #333;
+      color: darkgray;
+      font-family: Arial;
     }
+
     a {
+      color: white;
       text-decoration: none;
-      color: #fff;
     }
-    /* Top Navigation Bar */
+
     .topbar {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #005f99;
       padding: 1rem 2rem;
-      color: #fff;
+      align-items: center;
+      justify-content: space-between;
+      color: white;
+      background: #005f99;
     }
     .topbar .logo {
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       font-weight: bold;
     }
     .topbar .nav-links a {
-      margin-left: 1.5rem;
+      margin-left: 1.4rem;
       font-size: 1rem;
-      transition: color 0.3s ease;
     }
-    .topbar .nav-links a:hover {
-      color: #d1e7f2;
-    }
-    /* Upload Box Section */
-    .upload-section {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 3rem 0;
-    }
+
+
+
+
     .upload-box {
-      background: #fff;
-      border-radius: 50%;
+      flex-direction: column;
       width: 200px;
       height: 200px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      border-radius: 30%;
       align-items: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       cursor: pointer;
-      transition: transform 0.3s ease;
+      display: flex;
+      justify-content: center;
+      background: white;
     }
-    .upload-box:hover {
-      transform: scale(1.05);
-    }
+
+
     .upload-box i {
-      font-size: 4rem;
       color: #005f99;
+      font-size: 3.5rem;
     }
     .upload-box span {
-      margin-top: 0.5rem;
-      font-size: 1.2rem;
+      font-size: 1rem;
       color: #005f99;
+      margin-top: 0.5rem;
       font-weight: bold;
     }
-    /* Main Content Section */
-    .main-content {
+
+    .upload-section {
+      align-items: center;
       display: flex;
+      margin: 3rem 0;
+      justify-content: center;
+    }
+
+
+    .features {
       justify-content: space-around;
+      padding: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      margin: 2rem;
+    }
+    .feature {
+      background: white;
+      width: 320px;
+      margin: 1rem;
+      flex-direction: row;
+      display: flex;
+      border-radius: 10px;
+    }
+
+    .main-content {
+      margin: 2rem;
       align-items: center;
       padding: 2rem;
-      background: #eaf3fa;
-      margin: 2rem;
+      display: flex;
+      justify-content: space-around;
+      background: whitesmoke;
       border-radius: 8px;
     }
     .main-content .text {
       max-width: 500px;
-      font-size: 1.2rem;
+      font-size: 1rem;
       color: #003d66;
     }
     .main-content .image {
+      border-radius: 8px;
       max-width: 400px;
       height: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
-    /* Features Section */
-    .features {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      padding: 2rem;
-      margin: 2rem;
-    }
-    .feature {
-      background: #fff;
-      border-radius: 8px;
-      width: 300px;
-      margin: 1rem;
-      display: flex;
-      flex-direction: row;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    .feature .feature-img {
+
+    .feature .feature-box {
       width: 100px;
       height: 100px;
-      border-top-left-radius: 8px;
-      border-bottom-left-radius: 8px;
       background: #005f99;
       background-size: cover;
       background-position: center;
     }
     .feature .feature-text {
+      font-size: 1rem;
+      color: #003d66;
       padding: 1rem;
       flex: 1;
+      font-weight: bold;
       display: flex;
       align-items: center;
-      font-size: 1.2rem;
-      color: #003d66;
-      font-weight: bold;
     }
-    /* Footer */
+
     footer {
-      background: #005f99;
-      color: #fff;
-      padding: 1rem 2rem;
       display: flex;
+      background: #005f99;
+      color: white;
+      padding: 1rem 2rem;
       justify-content: flex-end;
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
   </style>
-  <!-- You can include an icon library like FontAwesome if desired -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnH/PRDZHnR1D5fALRX6J56e7n5n5jZ1Nw8wBf5g1FQ4NTIyYkMv+6I9h0fXhYISxsmZn/3Cg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
   <!-- Top Navigation Bar -->
@@ -148,11 +148,8 @@
       <a href="<%= registerLink %>">Register</a>
     </nav>
   </header>
-
-  <!-- Upload Box Section -->
   <section class="upload-section">
-    <div class="upload-box" onclick="window.location.href='<%= folderUploadLink %>'">
-      <i class="fas fa-cloud-upload-alt"></i>
+    <div class="upload-box" id="uploadBox">
       <span>Upload a file</span>
     </div>
   </section>
@@ -171,15 +168,15 @@
   <!-- Features Section -->
   <section class="features">
     <div class="feature">
-      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-box"></div>
       <div class="feature-text">Upload files securely</div>
     </div>
     <div class="feature">
-      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-box"></div>
       <div class="feature-text">Manage collaborative folders</div>
     </div>
     <div class="feature">
-      <div class="feature-img" style="background-image: url('https://via.placeholder.com/100');"></div>
+      <div class="feature-box"></div>
       <div class="feature-text">Manage access controls</div>
     </div>
   </section>
@@ -188,5 +185,11 @@
   <footer>
     <div>Uploading files since 2025</div>
   </footer>
+
+  <script nonce="<%= nonce %>">
+    document.getElementById('uploadBox').addEventListener('click', function() {
+      window.location.href = '<%= folderUploadLink %>';
+    });
+  </script>
 </body>
 </html>

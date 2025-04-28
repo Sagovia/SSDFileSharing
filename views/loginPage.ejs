@@ -2,48 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- CSP used to stop unauthorized scripts from being executed -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSP -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= nonce %>'; style-src 'self' 'nonce-<%= nonce %>';">
   <title>Login - SSDFileSharing</title>
-  <style>
-    /* Global Styles */
+  <style nonce="<%= nonce %>">
+
+  html, body {
+      height: 100%;
+    }
+
     body {
-      margin: 0;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f4f9fc;
-      color: #333;
+      color: dimgray;
       display: flex;
+      background-color: whitesmoke;
       justify-content: center;
+      margin: 0;
+      font-family: Arial;
       align-items: center;
-      height: 100vh;
     }
-    /* Container for the login card */
-    .login-container {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 2rem;
-      width: 100%;
-      max-width: 400px;
-    }
-    /* Top header in the login card */
-    .login-container h1 {
-      text-align: center;
-      color: #005f99;
-      margin-bottom: 1.5rem;
-    }
-    /* Styling for messages */
-    .message {
-      background-color: #ffecec;
-      border: 1px solid #ff5c5c;
-      color: #ff5c5c;
-      padding: 0.5rem;
-      margin-bottom: 1rem;
-      text-align: center;
-      border-radius: 4px;
-    }
-    /* Form styles */
     form {
       display: flex;
       flex-direction: column;
@@ -71,9 +47,29 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
-    form button:hover {
-      background-color: #004e80;
+    .login-container {
+      border-radius: 10px;
+      padding: 2rem;
+      background: lightblue;
+      width: 100%;
+      max-width: 400px;
     }
+    .login-container h1 {
+      text-align: center;
+      color: #005f99;
+      margin-bottom: 1.5rem;
+    }
+    .message {
+      color: lightcoral;
+      text-align: center;
+      border-radius: 5px;
+      background-color: whitesmoke;
+      border: 1px solid lightcoral;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+
   </style>
 </head>
 <body>

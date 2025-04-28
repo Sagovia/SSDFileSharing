@@ -16,8 +16,6 @@ If folder is private, then it should also contain:
 - Whitelisted users who are allowed to view the folder
 
 
-NOTE: Remember to update some related variables in other File.js and User.js files
-
 */
 
 const mongoose = require('mongoose');
@@ -32,7 +30,7 @@ const folderSchema = new Schema({
     password: {
         type: Schema.Types.String, 
     },
-    owner: { // This will reference the _id of the owner, must be a User TODO: Figure out validation checking for this later
+    owner: { // This will reference the _id of the owner, must be a User 
         type: Schema.Types.ObjectId,
         ref: 'User', // Refers to the User model 
         required: true // Folder must have an owner 

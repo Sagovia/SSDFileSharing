@@ -8,7 +8,7 @@ const bcrypt = require("bcrypt");
 const session = require('express-session'); // Import to use use sessions
 const cookieParser = require('cookie-parser'); // Import to parse cookies (like session cookies)
 // Multer processes files in the multipart/form-data format. (middleware)
-const passport = require("passport"); // TODO: Remember to download + implement TOTP MFA Passport strategy later
+const passport = require("passport"); 
 const upload = multer({dest: "uploads"})
 require("../strategies/local-strategy.js"); // Import our local strategy for Passport.js authentication
 const User = require('../models/User.js'); // Import our mongoose User object
@@ -240,27 +240,6 @@ const parseAndValidateList = async (response, list) => {
 }
 
 
-/*
-
-const modifyFilePermissions = async (isPrivate, file, addWhitelist, removeWhitelist) => {
-    if(!isPrivate) { // File is public
-        file.isPrivate = false;
-        file.viewWhitelist = null;
-    }
-    else {
-
-        console.log(addWhitelist);
-        console.log(file.viewWhitelist);
-        file.viewWhitelist = [...new Set([...(file.viewWhitelist || []), ...addWhitelist])];
-        file.viewWhitelist = file.viewWhitelist.filter(item => !removeWhitelist.includes(item));
-        
-    }
-
-    await file.save();
-
-}
-    */
-
 
 const modifyFilePermissions = async (isPrivate, file, addWhitelist, removeWhitelist) => {
     if (!isPrivate) { // File is public
@@ -287,32 +266,7 @@ const modifyFilePermissions = async (isPrivate, file, addWhitelist, removeWhitel
     await file.save();
   };
 
-  /*
-const modifyFolderPermissions = async (isPrivate, folder, viewWhitelistAdd, viewWhitelistRemove, editWhitelistAdd, editWhitelistRemove, deleteWhitelistAdd, deleteWhitelistRemove) => {
-    console.log("Inside helper function modifyFolderPermissions");
-    if(!isPrivate) { // File is public
-        folder.isPrivate = false;
-        folder.viewWhitelist = null;
-        folder.editWhitelist = null;
-        folder.deleteWhitelist = null;
-    }
-    else {
-        folder.viewWhitelist = [...new Set([...(folder.viewWhitelist || []), ...viewWhitelistAdd])];
-        folder.viewWhitelist = folder.viewWhitelist.filter(item => !viewWhitelistRemove.includes(item));
-        console.log(folder.viewWhitelist);
-        console.log(viewWhitelistRemove);
 
-        folder.editWhitelist = [...new Set([...(folder.editWhitelist || []), ...editWhitelistAdd])];
-        folder.editWhitelist = folder.editWhitelist.filter(item => !editWhitelistRemove.includes(item));
-
-        folder.deleteWhitelist = [...new Set([...(folder.deleteWhitelist || []), ...deleteWhitelistAdd])];
-        folder.deleteWhitelist = folder.deleteWhitelist.filter(item => !deleteWhitelistRemove.includes(item));
-    }
-
-    await folder.save();
-
-}
-*/
 
 const modifyFolderPermissions = async (isPrivate, folder, viewWhitelistAdd, viewWhitelistRemove, editWhitelistAdd, editWhitelistRemove, deleteWhitelistAdd, deleteWhitelistRemove) => {
     console.log("Inside helper function modifyFolderPermissions");
@@ -351,11 +305,6 @@ const modifyFolderPermissions = async (isPrivate, folder, viewWhitelistAdd, view
     }
     await folder.save();
 }
-
-
-
-
-
 
 
 // Input: newPassword (prevalidated)

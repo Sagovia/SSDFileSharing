@@ -8,7 +8,6 @@ Contains:
 - Array of Files they own // TODO
 - List of Folders they own // TODO
 
-TODO: Consider ability to change things like -
 */
 
 const mongoose = require('mongoose');
@@ -17,17 +16,17 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
     email: {
-        type: Schema.Types.String, //TODO add validation check that email makes actual sense
+        type: Schema.Types.String, 
         required: true,
         unique: true,
     },
     username: {
-        type: Schema.Types.String, //TODO add validation check that no spaces or weird characters allowed
+        type: Schema.Types.String, 
         required: true,
         unique: true,
     },
     password: {
-        type: Schema.Types.String, //TODO add validation check that no spaces or weird characters allowed
+        type: Schema.Types.String, 
         required: true,
     }
 });

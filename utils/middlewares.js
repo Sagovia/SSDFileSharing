@@ -164,19 +164,16 @@ const checkPasswordForFile = (req, res, next) => {
     if(passwordErrors.length > 0) {
         req.correctFilePassword = false;
         return next();
-        // return res.render("password", { msg: "Invalid password entered. Try again." });
     }
     
     if (req.file.password) { // If requested file needs password
         if (!data.password) { // No input password given
             req.correctFilePassword = false;
             return next();
-            // return res.render("password", { msg: "Enter password to access this file" });
         }
         if (bcrypt.compareSync(data.password, req.file.password)) { // If correct password
             req.correctFilePassword = true;
             return next();
-            // return res.render("password", { msg: "Incorrect password. Try again" });
         }
     }
     req.correctFilePassword = false;
